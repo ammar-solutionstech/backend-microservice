@@ -10,7 +10,7 @@ import (
 	"backend/services"
 )
 
-func RegisterRoutesOld(cfg *config.Config) http.Handler {
+/* func RegisterRoutesOld(cfg *config.Config) http.Handler {
 	userService := services.NewUserService(cfg.DB)
 	authController := controllers.NewAuthController(cfg, userService)
 
@@ -30,7 +30,7 @@ func RegisterRoutesOld(cfg *config.Config) http.Handler {
 	//Register Routes From files
 
 	return mux
-}
+} */
 
 func RegisterRoutes(cfg *config.Config) http.Handler {
 	userService := services.NewUserService(cfg.DB)
