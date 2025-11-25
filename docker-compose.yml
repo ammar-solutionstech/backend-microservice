@@ -1,0 +1,178 @@
+# version: '3.8'
+
+services:
+  # PostgreSQL Databases
+  postgres-itaas:
+    build:
+      context: .
+      dockerfile: ./docker/postgres/Dockerfile
+    container_name: postgres-itaas
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-itaas-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbitmq
+      RABBITMQ_DEFAULT_PASS: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: ./services/auth/Dockerfile
+    container_name: auth-service
+    environment:
+      AUTH_DB_HOST: postgres-itaas
+      AUTH_DB_PORT: 5432
+      AUTH_DB_NAME: auth_db
+      AUTH_DB_USER: postgres
+      AUTH_DB_PASSWORD: postgres
+      AUTH_PORT: 8001
+      AUTH_GRPC_PORT: 9001
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      JWT_ACCESS_EXPIRY: 15m
+      JWT_REFRESH_EXPIRY: 7d
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      RABBITMQ_USER: rabbitmq
+      RABBITMQ_PASSWORD: rabbitmq
+    ports:
+      - "8001:8001"
+      - "9001:9001"
+    depends_on:
+      postgres-itaas:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  # Help Desk Service
+  helpdesk-service:
+    build:
+      context: .
+      dockerfile: ./services/helpdesk/Dockerfile
+    container_name: helpdesk-service
+    environment:
+      HELPDESK_DB_HOST: postgres-itaas
+      HELPDESK_DB_PORT: 5432
+      HELPDESK_DB_NAME: helpdesk_db
+      HELPDESK_DB_USER: postgres
+      HELPDESK_DB_PASSWORD: postgres
+      HELPDESK_PORT: 8002
+      HELPDESK_GRPC_PORT: 9002
+      AUTH_SERVICE_GRPC: auth-service:9001
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      RABBITMQ_USER: rabbitmq
+      RABBITMQ_PASSWORD: rabbitmq
+    ports:
+      - "8002:8002"
+      - "9002:9002"
+    depends_on:
+      postgres-itaas:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  # Notification Service
+  notification-service:
+    build:
+      context: .
+      dockerfile: ./services/notification/Dockerfile
+    container_name: notification-service
+    environment:
+      NOTIFICATION_DB_HOST: postgres-itaas
+      NOTIFICATION_DB_PORT: 5432
+      NOTIFICATION_DB_NAME: notification_db
+      NOTIFICATION_DB_USER: postgres
+      NOTIFICATION_DB_PASSWORD: postgres
+      NOTIFICATION_PORT: 8003
+      NOTIFICATION_GRPC_PORT: 9003
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      RABBITMQ_USER: rabbitmq
+      RABBITMQ_PASSWORD: rabbitmq
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_TLS: ${SMTP_TLS:-true}
+    ports:
+      - "8003:8003"
+      - "9003:9003"
+    depends_on:
+      postgres-itaas:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  # API Gateway
+  gateway:
+    build:
+      context: .
+      dockerfile: ./services/gateway/Dockerfile
+    container_name: gateway
+    environment:
+      GATEWAY_PORT: 8080
+      AUTH_SERVICE_GRPC: auth-service:9001
+      HELPDESK_SERVICE_GRPC: helpdesk-service:9002
+      NOTIFICATION_SERVICE_GRPC: notification-service:9003
+      LEGACY_DB_HOST: postgres-itaas
+      LEGACY_DB_PORT: 5432
+      LEGACY_DB_NAME: ITaaS
+      LEGACY_DB_USER: postgres
+      LEGACY_DB_PASSWORD: postgres
+      LEGACY_DB_SCHEMA: public
+    ports:
+      - "8080:8080"
+    depends_on:
+      auth-service:
+        condition: service_started
+      helpdesk-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      postgres-itaas:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+volumes:
+  postgres-itaas-data:
+  rabbitmq-data:
+
+networks:
+  microservices-network:
+    driver: bridge
+

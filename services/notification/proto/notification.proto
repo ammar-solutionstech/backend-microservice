@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package notification;
+
+option go_package = "backend/services/notification/proto";
+
+// Notification Service
+service NotificationService {
+  rpc SendEmail(SendEmailRequest) returns (SendEmailResponse);
+  rpc SendSMS(SendSMSRequest) returns (SendSMSResponse);
+  rpc GetTemplate(GetTemplateRequest) returns (TemplateResponse);
+  rpc CreateTemplate(CreateTemplateRequest) returns (TemplateResponse);
+}
+
+// Email Messages
+message SendEmailRequest {
+  string to = 1;
+  string subject = 2;
+  string body = 3;
+  string template_name = 4;
+  map<string, string> variables = 5;
+}
+
+message SendEmailResponse {
+  bool success = 1;
+  string message_id = 2;
+  string error = 3;
+}
+
+// SMS Messages
+message SendSMSRequest {
+  string to = 1;
+  string content = 2;
+  string template_name = 3;
+  map<string, string> variables = 4;
+}
+
+message SendSMSResponse {
+  bool success = 1;
+  string message_id = 2;
+  string error = 3;
+}
+
+// Template Messages
+message GetTemplateRequest {
+  string template_name = 1;
+  string type = 2; // "email" or "sms"
+}
+
+message CreateTemplateRequest {
+  string name = 1;
+  string type = 2; // "email" or "sms"
+  string subject = 3; // for email
+  string content = 4;
+  repeated string variables = 5;
+}
+
+message TemplateResponse {
+  int32 id = 1;
+  string name = 2;
+  string type = 3;
+  string subject = 4;
+  string content = 5;
+  repeated string variables = 6;
+}
+

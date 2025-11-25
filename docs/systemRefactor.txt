@@ -1,0 +1,126 @@
+You will refactor an existing Go Help Desk backend system (currently monolithic using Chi) into a fully structured microservices architecture.
+Apply all instructions below carefully.
+
+?? MAIN OBJECTIVE
+Refactor the existing codebase into Microservices Architecture in Go using Chi, gRPC, PostgreSQL, RabbitMQ, and JWT + Refresh Tokens.
+Maintain existing logic where possible but restructure the whole system.
+
+?? 1. ARCHITECTURE REQUIREMENTS
+Microservices Required:
+1. Auth Service (User + Authentication combined)
+* Register user
+* Login
+* JWT + Refresh tokens
+* Forgot password
+* Reset password
+* Email verification
+* Phone verification
+* Resend OTP
+* Token revocation list
+* Export a gRPC API and REST API
+* PostgreSQL database
+2. Help Desk Service
+* Tickets CRUD
+* Ticket categories
+* Ticket assignment
+* Ticket comments
+* Ticket attachments
+* Ticket status workflow
+* gRPC API used internally, REST API exposed externally
+* PostgreSQL database
+* No foreign keys to any other microservice
+* Communicate to Auth Service only through gRPC
+3. Notification Service
+* Abstract notification sending
+* Support Email (SMTP provider)
+* Support SMS (provider-agnostic)
+* Internal gRPC interface for other services
+* Queue-based sending using RabbitMQ
+* Email/SMS templates system
+* Template variables injection
+4. API Gateway
+* Chi HTTP server
+* Route external REST requests to backend microservices
+* Handle:
+o Auth middleware
+o Token validation and logout mechanism
+o Error normalization
+* Communicates with services through gRPC clients
+
+?? 2. DATABASE RULES
+For each service:
+* Use PostgreSQL
+* Do NOT create any foreign keys across services
+* Services communicate ONLY via gRPC or RabbitMQ events (or throw API - not recommended unless it is required)
+* Each service has its own migration folder
+
+?? 3. AUTH SERVICE DETAILS
+JWT Requirements
+* Access token (short-lived)
+* Refresh token (long-lived)
+* Token rotation
+* Refresh token blacklist
+Registration
+* User registers
+* System sends:
+o Email verification code (6 digits)
+o SMS verification code (6 digits)
+Verification
+* When email is verified ? set email_verified = true
+* When phone is verified ? set phone_verified = true
+Forgot Password
+* Generate OTP
+* Send it through Notification Service
+* Validate OTP
+* Reset password
+
+?? 4. NOTIFICATION SERVICE DETAILS
+SMTP Support
+* Host, port, username, password, TLS mode
+SMS Support
+* Use abstract interface (e.g., SMSProvider)
+* Implement a mock provider
+* Future support for Twilio or others
+Templates
+* Email and SMS templates stored in DB
+* Render templates with variables
+* Queue messages to RabbitMQ
+Workers
+* Background worker consuming notifications
+
+?? 5. COMMUNICATION PATTERNS
+gRPC
+* API Gateway ? Auth Service
+* API Gateway ? Help Desk
+* Help Desk ? Notification Service
+* Auth Service ? Notification Service
+RabbitMQ
+* For async events like:
+o "user_registered"
+o "password_reset"
+o "ticket_created"
+o "ticket_updated"
+
+?? 6. CODE GENERATION REQUIREMENTS
+Cursor Must Do:
+* Read the existing codebase and refactor it
+* Generate new directory structure
+* Create gRPC protobuf definitions
+* Generate implementation for each service
+* Update configuration system for multi-service deployment
+* Add Docker Compose with services:
+o auth
+o helpdesk
+o notification
+o gateway
+o postgres
+o rabbitmq
+
+?? 7. CODING STANDARDS
+* Use Chi for HTTP 
+* Use gRPC + protobuf 
+* Use GORM
+* Use clean architecture
+* Use environment variables for configuration
+* Full error wrapping and custom error types
+

@@ -1,0 +1,201 @@
+syntax = "proto3";
+
+package helpdesk;
+
+option go_package = "backend/services/helpdesk/proto";
+
+// Help Desk Service
+service HelpDeskService {
+  rpc CreateTicket(CreateTicketRequest) returns (TicketResponse);
+  rpc GetTicket(GetTicketRequest) returns (TicketResponse);
+  rpc UpdateTicket(UpdateTicketRequest) returns (TicketResponse);
+  rpc ListTickets(ListTicketsRequest) returns (ListTicketsResponse);
+  rpc DeleteTicket(DeleteTicketRequest) returns (DeleteTicketResponse);
+}
+
+// Ticket Service
+service TicketService {
+  rpc AddComment(AddCommentRequest) returns (CommentResponse);
+  rpc GetComments(GetCommentsRequest) returns (GetCommentsResponse);
+  rpc AddAttachment(AddAttachmentRequest) returns (AttachmentResponse);
+  rpc GetAttachments(GetAttachmentsRequest) returns (GetAttachmentsResponse);
+  rpc AssignUser(AssignUserRequest) returns (AssignUserResponse);
+  rpc UpdateStatus(UpdateStatusRequest) returns (UpdateStatusResponse);
+}
+
+// Help Desk Type Service
+service HelpDeskTypeService {
+  rpc CreateType(CreateTypeRequest) returns (TypeResponse);
+  rpc GetType(GetTypeRequest) returns (TypeResponse);
+  rpc ListTypes(ListTypesRequest) returns (ListTypesResponse);
+  rpc UpdateType(UpdateTypeRequest) returns (TypeResponse);
+  rpc DeleteType(DeleteTypeRequest) returns (DeleteTypeResponse);
+}
+
+// Ticket Messages
+message CreateTicketRequest {
+  string name = 1;
+  string description = 2;
+  int32 help_desk_type_id = 3;
+  int32 portal_user_id = 4;
+  string state = 5;
+  int32 parent_id = 6;
+  int32 project_id = 7;
+}
+
+message GetTicketRequest {
+  int32 ticket_id = 1;
+}
+
+message UpdateTicketRequest {
+  int32 ticket_id = 1;
+  string name = 2;
+  string description = 3;
+  string state = 4;
+  int32 help_desk_type_id = 5;
+}
+
+message ListTicketsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 user_id = 3;
+  string state = 4;
+}
+
+message ListTicketsResponse {
+  repeated TicketResponse tickets = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message DeleteTicketRequest {
+  int32 ticket_id = 1;
+}
+
+message TicketResponse {
+  int32 id = 1;
+  string name = 2;
+  string create_date = 3;
+  int32 help_desk_type_id = 4;
+  int32 portal_user_id = 5;
+  string description = 6;
+  string state = 7;
+  string resolve_date = 8;
+  int32 parent_id = 9;
+  int32 project_id = 10;
+}
+
+// Comment Messages
+message AddCommentRequest {
+  int32 ticket_id = 1;
+  int32 user_id = 2;
+  string content = 3;
+}
+
+message GetCommentsRequest {
+  int32 ticket_id = 1;
+}
+
+message GetCommentsResponse {
+  repeated CommentResponse comments = 1;
+}
+
+message CommentResponse {
+  int32 id = 1;
+  int32 ticket_id = 2;
+  int32 user_id = 3;
+  string content = 4;
+  string created_at = 5;
+}
+
+// Attachment Messages
+message AddAttachmentRequest {
+  int32 ticket_id = 1;
+  string name = 2;
+  bytes content = 3;
+  string document_type = 4;
+}
+
+message GetAttachmentsRequest {
+  int32 ticket_id = 1;
+}
+
+message GetAttachmentsResponse {
+  repeated AttachmentResponse attachments = 1;
+}
+
+message AttachmentResponse {
+  int32 id = 1;
+  int32 ticket_id = 2;
+  string name = 3;
+  string document_type = 4;
+  string created_at = 5;
+}
+
+// Assignment Messages
+message AssignUserRequest {
+  int32 ticket_id = 1;
+  int32 user_id = 2;
+}
+
+message AssignUserResponse {
+  bool success = 1;
+}
+
+message UpdateStatusRequest {
+  int32 ticket_id = 1;
+  string status = 2;
+}
+
+message UpdateStatusResponse {
+  bool success = 1;
+}
+
+// Type Messages
+message CreateTypeRequest {
+  string name = 1;
+  string description = 2;
+  int32 team_id = 3;
+  bool is_active = 4;
+}
+
+message GetTypeRequest {
+  int32 type_id = 1;
+}
+
+message ListTypesRequest {
+  bool active_only = 1;
+}
+
+message ListTypesResponse {
+  repeated TypeResponse types = 1;
+}
+
+message UpdateTypeRequest {
+  int32 type_id = 1;
+  string name = 2;
+  string description = 3;
+  bool is_active = 4;
+}
+
+message DeleteTypeRequest {
+  int32 type_id = 1;
+}
+
+message DeleteTicketResponse {
+  bool success = 1;
+}
+
+message DeleteTypeResponse {
+  bool success = 1;
+}
+
+message TypeResponse {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+  int32 team_id = 4;
+  bool is_active = 5;
+}
+

@@ -1,0 +1,21 @@
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy service code
+COPY services/auth ./services/auth
+
+# Build
+WORKDIR /app/services/auth
+RUN go build -o /app/auth-service ./cmd/server
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+WORKDIR /root/
+COPY --from=builder /app/auth-service .
+CMD ["./auth-service"]
+

@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "backend/services/auth/proto";
+
+// Auth Service
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+}
+
+// User Service
+service UserService {
+  rpc GetUser(GetUserRequest) returns (UserResponse);
+  rpc GetUserByID(GetUserByIDRequest) returns (UserResponse);
+  rpc ValidateUser(ValidateUserRequest) returns (ValidateUserResponse);
+  rpc GetUserRoles(GetUserRolesRequest) returns (GetUserRolesResponse);
+  rpc GetUserPermissions(GetUserPermissionsRequest) returns (GetUserPermissionsResponse);
+}
+
+// Auth Requests/Responses
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_in = 3;
+  UserResponse user = 4;
+}
+
+message RegisterRequest {
+  string first_name = 1;
+  string latest_name = 2;
+  string father_name = 3;
+  string work_email = 4;
+  string password = 5;
+  string work_mobile = 6;
+  int32 nationality_id = 7;
+}
+
+message RegisterResponse {
+  UserResponse user = 1;
+  string message = 2;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message RefreshTokenResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_in = 3;
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  int32 user_id = 2;
+  repeated string roles = 3;
+  repeated int32 permissions = 4;
+}
+
+message LogoutRequest {
+  string refresh_token = 1;
+}
+
+message LogoutResponse {
+  bool success = 1;
+}
+
+// User Requests/Responses
+message GetUserRequest {
+  string email = 1;
+}
+
+message GetUserByIDRequest {
+  int32 user_id = 1;
+}
+
+message ValidateUserRequest {
+  int32 user_id = 1;
+}
+
+message ValidateUserResponse {
+  bool valid = 1;
+  UserResponse user = 2;
+}
+
+message GetUserRolesRequest {
+  int32 user_id = 1;
+}
+
+message GetUserRolesResponse {
+  repeated string roles = 1;
+}
+
+message GetUserPermissionsRequest {
+  int32 user_id = 1;
+}
+
+message GetUserPermissionsResponse {
+  repeated int32 permissions = 1;
+}
+
+message UserResponse {
+  int32 id = 1;
+  string first_name = 2;
+  string latest_name = 3;
+  string father_name = 4;
+  string work_email = 5;
+  string work_mobile = 6;
+  bool email_verified = 7;
+  bool phone_verified = 8;
+  int32 active = 9;
+}
+
