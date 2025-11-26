@@ -137,6 +137,58 @@ services:
     networks:
       - microservices-network
 
+  # step-ca (Optional - can use existing instance)
+  step-ca:
+    image: smallstep/step-ca:latest
+    container_name: step-ca
+    environment:
+      STEP_CA_NAME: ITaaS CA
+      STEP_CA_ADDRESS: :9000
+      STEP_CA_DNS: localhost
+      STEP_CA_PROVISIONER_NAME: ${STEP_CA_PROVISIONER:-admin}
+      STEP_CA_PROVISIONER_PASSWORD: ${STEP_CA_PROVISIONER_PASSWORD:-password}
+    ports:
+      - "9000:9000"
+    volumes:
+      - step-ca-data:/home/step
+    networks:
+      - microservices-network
+    profiles:
+      - step-ca  # Only start if explicitly requested
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Certificate Service
+  certificate-service:
+    build:
+      context: .
+      dockerfile: ./services/certificate/Dockerfile
+    container_name: certificate-service
+    environment:
+      CERTIFICATE_DB_HOST: postgres-itaas
+      CERTIFICATE_DB_PORT: 5432
+      CERTIFICATE_DB_NAME: certificate_db
+      CERTIFICATE_DB_USER: postgres
+      CERTIFICATE_DB_PASSWORD: postgres
+      CERTIFICATE_PORT: 8004
+      CERTIFICATE_GRPC_PORT: 9004
+      STEP_CA_URL: ${STEP_CA_URL:-http://step-ca:9000}
+      STEP_CA_TOKEN: ${STEP_CA_TOKEN:-}
+      STEP_CA_PROVISIONER: ${STEP_CA_PROVISIONER:-admin}
+      STEP_CA_USE_MTLS: ${STEP_CA_USE_MTLS:-false}
+      STEP_CA_MANAGE_DOCKER: ${STEP_CA_MANAGE_DOCKER:-false}
+    ports:
+      - "8004:8004"
+      - "9004:9004"
+    depends_on:
+      postgres-itaas:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
   # API Gateway
   gateway:
     build:
@@ -171,6 +223,7 @@ services:
 volumes:
   postgres-itaas-data:
   rabbitmq-data:
+  step-ca-data:
 
 networks:
   microservices-network:
