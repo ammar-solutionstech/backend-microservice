@@ -16,6 +16,11 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd D:\backend_v1;
 
 Start-Sleep -Seconds 2
 
+# Start Certificate Service
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd D:\backend_v1; Write-Host 'Certificate Service' -ForegroundColor Cyan; go run ./services/certificate/cmd/server"
+
+Start-Sleep -Seconds 2
+
 # Start Gateway
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd D:\backend_v1; Write-Host 'Gateway' -ForegroundColor Cyan; go run ./services/gateway/cmd/server"
 

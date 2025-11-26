@@ -1,0 +1,373 @@
+{
+	"info": {
+		"_postman_id": "itaas-certificate-service-2024",
+		"name": "ITaaS Certificate Management Service",
+		"description": "Certificate Management Microservice API Collection\n\nBase URL: http://localhost:8004\n\nThis service provides certificate lifecycle management (RA/CA/VA roles) by integrating with Smallstep step-ca.\n\nRoles:\n- RA (Registration Authority): CSR submission, approval, rejection\n- CA (Certificate Authority): Certificate issuance, revocation, renewal\n- VA (Validation Authority): OCSP status, CRL, validation",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Certificate Service Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						},
+						"description": "Check if the certificate service is running"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "RA - Registration Authority",
+			"item": [
+				{
+					"name": "Submit CSR",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"csr_pem\": \"-----BEGIN CERTIFICATE REQUEST-----\\nMIICVjCCAT4CAQAwEjEQMA4GA1UEAwwHZXhhbXBsZTEwggEiMA0GCSqGSIb3\\nDQEBAQUAA4IBDwAwggEKAoIBAQC7VJTUt9Us8cKjMzEfYyjiWA4R4/M2bNdx\\n...\\n-----END CERTIFICATE REQUEST-----\",\n    \"requester_email\": \"user@example.com\",\n    \"requester_user_id\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/csr",
+							"host": ["{{base_url}}"],
+							"path": ["api", "csr"]
+						},
+						"description": "Submit a new Certificate Signing Request (CSR)"
+					},
+					"response": []
+				},
+				{
+					"name": "List CSRs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/csr?status=pending&limit=20&offset=0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "csr"],
+							"query": [
+								{
+									"key": "status",
+									"value": "pending",
+									"description": "Filter by status: pending, approved, rejected",
+									"disabled": true
+								},
+								{
+									"key": "requester_user_id",
+									"value": "1",
+									"description": "Filter by requester user ID",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "20",
+									"description": "Number of results per page",
+									"disabled": true
+								},
+								{
+									"key": "offset",
+									"value": "0",
+									"description": "Pagination offset",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List all CSR requests with optional filters"
+					},
+					"response": []
+				},
+				{
+					"name": "Get CSR by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/csr/{{csr_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "csr", "{{csr_id}}"]
+						},
+						"description": "Get details of a specific CSR request"
+					},
+					"response": []
+				},
+				{
+					"name": "Approve CSR",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"approver_id\": 1,\n    \"auto_issue\": true\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/csr/{{csr_id}}/approve",
+							"host": ["{{base_url}}"],
+							"path": ["api", "csr", "{{csr_id}}", "approve"]
+						},
+						"description": "Approve a CSR request. If auto_issue is true, the certificate will be issued immediately."
+					},
+					"response": []
+				},
+				{
+					"name": "Reject CSR",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"CSR does not meet security requirements\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/csr/{{csr_id}}/reject",
+							"host": ["{{base_url}}"],
+							"path": ["api", "csr", "{{csr_id}}", "reject"]
+						},
+						"description": "Reject a CSR request with a reason"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "CA - Certificate Authority",
+			"item": [
+				{
+					"name": "Issue Certificate",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"csr_id\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/certificates",
+							"host": ["{{base_url}}"],
+							"path": ["api", "certificates"]
+						},
+						"description": "Issue a certificate from an approved CSR"
+					},
+					"response": []
+				},
+				{
+					"name": "List Certificates",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/certificates?status=active&limit=20&offset=0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "certificates"],
+							"query": [
+								{
+									"key": "status",
+									"value": "active",
+									"description": "Filter by status: active, revoked, expired",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "20",
+									"description": "Number of results per page",
+									"disabled": true
+								},
+								{
+									"key": "offset",
+									"value": "0",
+									"description": "Pagination offset",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List all certificates with optional filters"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Certificate by Serial",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/certificates/{{certificate_serial}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "certificates", "{{certificate_serial}}"]
+						},
+						"description": "Get details of a specific certificate by serial number"
+					},
+					"response": []
+				},
+				{
+					"name": "Revoke Certificate",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": 0,\n    \"revoked_by\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/certificates/{{certificate_serial}}/revoke",
+							"host": ["{{base_url}}"],
+							"path": ["api", "certificates", "{{certificate_serial}}", "revoke"]
+						},
+						"description": "Revoke a certificate. Reason codes follow RFC 5280:\n- 0: Unspecified\n- 1: Key Compromise\n- 2: CA Compromise\n- 3: Affiliation Changed\n- 4: Superseded\n- 5: Cessation of Operation\n- 6: Certificate Hold\n- 8: Remove from CRL\n- 9: Privilege Withdrawn\n- 10: AA Compromise"
+					},
+					"response": []
+				},
+				{
+					"name": "Renew Certificate",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"serial\": \"{{certificate_serial}}\",\n    \"new_csr_pem\": \"-----BEGIN CERTIFICATE REQUEST-----\\nMIICVjCCAT4CAQAwEjEQMA4GA1UEAwwHZXhhbXBsZTEwggEiMA0GCSqGSIb3\\nDQEBAQUAA4IBDwAwggEKAoIBAQC7VJTUt9Us8cKjMzEfYyjiWA4R4/M2bNdx\\n...\\n-----END CERTIFICATE REQUEST-----\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/certificates/renew",
+							"host": ["{{base_url}}"],
+							"path": ["api", "certificates", "renew"]
+						},
+						"description": "Renew a certificate by signing a new CSR"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "VA - Validation Authority",
+			"item": [
+				{
+					"name": "Get OCSP Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/ocsp/{{certificate_serial}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ocsp", "{{certificate_serial}}"]
+						},
+						"description": "Get OCSP (Online Certificate Status Protocol) status for a certificate.\n\nStatus values:\n- good: Certificate is valid\n- revoked: Certificate has been revoked\n- unknown: Certificate status is unknown"
+					},
+					"response": []
+				},
+				{
+					"name": "Get CRL",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/crl",
+							"host": ["{{base_url}}"],
+							"path": ["api", "crl"]
+						},
+						"description": "Get the Certificate Revocation List (CRL) in PKIX format"
+					},
+					"response": []
+				},
+				{
+					"name": "Validate Certificate",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/validate/{{certificate_serial}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "validate", "{{certificate_serial}}"]
+						},
+						"description": "Validate if a certificate is valid (not revoked and not expired)"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8004",
+			"type": "string"
+		},
+		{
+			"key": "csr_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "certificate_serial",
+			"value": "ABC123DEF456",
+			"type": "string"
+		}
+	]
+}
