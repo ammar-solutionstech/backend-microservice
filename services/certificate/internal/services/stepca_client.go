@@ -24,8 +24,9 @@ type StepCAClient struct {
 
 // SignResponse represents the response from step-ca sign endpoint
 type SignResponse struct {
-	CertPEM string `json:"cert"`
-	CaPEM   string `json:"ca"`
+	CertPEM  string   `json:"crt"`
+	CaPEM    string   `json:"ca"`
+	ChainPEM []string `json:"certChain"`
 }
 
 // CertificateResponse represents a certificate from step-ca
@@ -94,6 +95,11 @@ func (c *StepCAClient) SignCSR(csrPEM string) (*SignResponse, error) {
 		"csr": csrPEM,
 	}
 
+	// Add token to request body as "ott" (one-time token) if available
+	if c.token != "" {
+		reqBody["ott"] = c.token
+	}
+
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %v", err)
@@ -105,6 +111,7 @@ func (c *StepCAClient) SignCSR(csrPEM string) (*SignResponse, error) {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	// Also keep Authorization header for compatibility
 	if c.token != "" {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 	}
@@ -115,14 +122,30 @@ func (c *StepCAClient) SignCSR(csrPEM string) (*SignResponse, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("step-ca returned error: %d - %s", resp.StatusCode, string(body))
+	// Read the response body first to check what we got
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
 
+	// Log the actual response for debugging
+	log.Printf("step-ca sign response (status %d): %s", resp.StatusCode, string(bodyBytes))
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("step-ca returned error: %d - %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Try to decode the response
 	var signResp SignResponse
-	if err := json.NewDecoder(resp.Body).Decode(&signResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %v", err)
+	if err := json.Unmarshal(bodyBytes, &signResp); err != nil {
+		// If decoding fails, log the raw response for debugging
+		log.Printf("Failed to decode response as SignResponse. Raw response: %s", string(bodyBytes))
+		return nil, fmt.Errorf("failed to decode response: %v. Response was: %s", err, string(bodyBytes))
+	}
+
+	// Validate that we got the certificate
+	if signResp.CertPEM == "" {
+		return nil, fmt.Errorf("step-ca response missing certificate. Response was: %s", string(bodyBytes))
 	}
 
 	return &signResp, nil
@@ -320,7 +343,7 @@ func (c *StepCAClient) ListCertificates(limit, offset int) ([]CertificateRespons
 // CheckConnectivity checks if step-ca is reachable
 func (c *StepCAClient) CheckConnectivity() error {
 	url := fmt.Sprintf("%s/health", c.baseURL)
-
+	log.Println(url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)

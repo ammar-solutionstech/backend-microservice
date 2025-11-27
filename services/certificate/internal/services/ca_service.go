@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"log"
 	"time"
 
 	"backend/services/certificate/internal/config"
@@ -49,9 +50,24 @@ func (s *CAService) IssueCertificate(csrID int) (*models.Certificate, error) {
 		return nil, fmt.Errorf("failed to sign CSR via step-ca: %v", err)
 	}
 
+	// Log the response for debugging
+	log.Printf("SignCSR response - CertPEM length: %d, CertPEM preview: %s",
+		len(signResp.CertPEM),
+		func() string {
+			if len(signResp.CertPEM) > 100 {
+				return signResp.CertPEM[:100] + "..."
+			}
+			return signResp.CertPEM
+		}())
+
 	// Parse the certificate to extract metadata
+	if signResp.CertPEM == "" {
+		return nil, fmt.Errorf("received empty certificate PEM from step-ca")
+	}
+
 	block, _ := pem.Decode([]byte(signResp.CertPEM))
 	if block == nil {
+		log.Printf("Failed to decode PEM. CertPEM content: %s", signResp.CertPEM)
 		return nil, fmt.Errorf("failed to decode certificate PEM")
 	}
 

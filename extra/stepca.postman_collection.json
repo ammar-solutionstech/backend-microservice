@@ -1,0 +1,175 @@
+{
+    "info": {
+      "name": "Smallstep step-ca Local Testing",
+      "_postman_id": "c4b5f6f1-4af1-4e80-9c7f-123456789001",
+      "description": "Postman collection to test Smallstep step-ca running on localhost:9000",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "Health Check",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "https://localhost:9000/health",
+            "protocol": "https",
+            "host": ["localhost"],
+            "port": "9000",
+            "path": ["health"]
+          }
+        }
+      },
+      {
+        "name": "Get Root Certificates",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "https://localhost:9000/roots",
+            "protocol": "https",
+            "host": ["localhost"],
+            "port": "9000",
+            "path": ["roots"]
+          }
+        }
+      },
+      {
+        "name": "Get Provisioners",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "https://localhost:9000/provisioners",
+            "protocol": "https",
+            "host": ["localhost"],
+            "port": "9000",
+            "path": ["provisioners"]
+          }
+        }
+      },
+      {
+        "name": "Request Token for JWK Provisioner",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"subject\": \"test.local\",\n  \"provisioner\": \"admin\"\n}"
+          },
+          "url": {
+            "raw": "https://localhost:9000/provisioners/admin/token",
+            "protocol": "https",
+            "host": ["localhost"],
+            "port": "9000",
+            "path": ["provisioners", "admin", "token"]
+          }
+        }
+      },
+      {
+        "name": "Sign Certificate",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"csr\": \"{{CSR_BASE64}}\"\n}"
+          },
+          "url": {
+            "raw": "https://localhost:9000/sign",
+            "protocol": "https",
+            "host": ["localhost"],
+            "port": "9000",
+            "path": ["sign"]
+          }
+        }
+      },
+      {
+        "name": "Renew Certificate",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"crt\": \"{{CERT_BASE64}}\",\n  \"key\": \"{{KEY_BASE64}}\"\n}"
+          },
+          "url": {
+            "raw": "https://localhost:9000/renew",
+            "protocol": "https",
+            "host": ["localhost"],
+            "port": "9000",
+            "path": ["renew"]
+          }
+        }
+      },
+      {
+        "name": "Rekey Certificate",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"crt\": \"{{CERT_BASE64}}\",\n  \"key\": \"{{KEY_BASE64}}\"\n}"
+          },
+          "url": {
+            "raw": "https://localhost:9000/rekey",
+            "protocol": "https",
+            "host": ["localhost"],
+            "port": "9000",
+            "path": ["rekey"]
+          }
+        }
+      }
+    ],
+    "variable": [
+      {
+        "key": "TOKEN",
+        "value": ""
+      },
+      {
+        "key": "CSR_BASE64",
+        "value": ""
+      },
+      {
+        "key": "CERT_BASE64",
+        "value": ""
+      },
+      {
+        "key": "KEY_BASE64",
+        "value": ""
+      }
+    ]
+  }
+  
