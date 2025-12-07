@@ -17,6 +17,12 @@ psql -v ON_ERROR_STOP=1 -U postgres <<-EOSQL
     SELECT 'CREATE DATABASE notification_db'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'notification_db')\gexec
     
+    SELECT 'CREATE DATABASE certificate_db'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'certificate_db')\gexec
+    
+    SELECT 'CREATE DATABASE container_mgmt_db'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'container_mgmt_db')\gexec
+    
     SELECT 'CREATE DATABASE "ITaaS"'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'ITaaS')\gexec
 EOSQL
@@ -29,5 +35,11 @@ psql -v ON_ERROR_STOP=1 -U postgres -d helpdesk_db -f /migrations/helpdesk/001_i
 
 echo "Running Notification Service migrations..."
 psql -v ON_ERROR_STOP=1 -U postgres -d notification_db -f /migrations/notification/001_initial_schema.sql
+
+echo "Running Certificate Service migrations..."
+psql -v ON_ERROR_STOP=1 -U postgres -d certificate_db -f /migrations/certificate/001_initial_schema.sql
+
+echo "Running Container Management Service migrations..."
+psql -v ON_ERROR_STOP=1 -U postgres -d container_mgmt_db -f /migrations/container-management/001_initial_schema.sql
 
 echo "Database initialization complete!"

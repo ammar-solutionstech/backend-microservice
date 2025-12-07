@@ -190,6 +190,39 @@ services:
       - microservices-network
 
   # API Gateway
+  # Container Management Service
+  container-management-service:
+    build:
+      context: .
+      dockerfile: ./services/container-management/Dockerfile
+    container_name: container-management-service
+    environment:
+      CONTAINER_MGMT_DB_HOST: postgres-itaas
+      CONTAINER_MGMT_DB_PORT: 5432
+      CONTAINER_MGMT_DB_NAME: container_mgmt_db
+      CONTAINER_MGMT_DB_USER: postgres
+      CONTAINER_MGMT_DB_PASSWORD: postgres
+      CONTAINER_MGMT_PORT: 8005
+      CERTIFICATE_SERVICE_URL: https://certificate-service:8004
+      CERTIFICATE_SERVICE_CA: /certs/ca.crt
+      CERTIFICATE_SERVICE_CERT: /certs/client.crt
+      CERTIFICATE_SERVICE_KEY: /certs/client.key
+      MTLS_CA_CERT: /certs/ca.crt
+      MTLS_SERVER_CERT: /certs/server.crt
+      MTLS_SERVER_KEY: /certs/server.key
+      BOOTSTRAP_TOKEN_SECRET: ${BOOTSTRAP_TOKEN_SECRET:-change-me-in-production}
+    ports:
+      - "8005:8005"
+    volumes:
+      - ./certs:/certs:ro
+    depends_on:
+      certificate-service:
+        condition: service_started
+      postgres-itaas:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
   gateway:
     build:
       context: .
