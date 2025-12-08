@@ -326,3 +326,53 @@ func (c *CertificateClient) ListCertificates(status string) ([]CertificateRespon
 	return certsResp, nil
 }
 
+// RequestAgentCertificate requests an agent certificate from certificate service
+// This is called by client container after verification is complete
+// Note: Verification is done by client container, not here
+func (c *CertificateClient) RequestAgentCertificate(containerID, deviceSerial, csrPEM string, containerInfo map[string]string) (*CertificateResponse, error) {
+	url := fmt.Sprintf("%s/api/certificates/request", c.baseURL)
+
+	reqBody := map[string]interface{}{
+		"csr_pem":        csrPEM,
+		"requester_email": fmt.Sprintf("container:%s:device:%s", containerID, deviceSerial),
+		"container_id":   containerInfo["container_id"],
+		"org_id":         containerInfo["org_id"],
+		"org_domain":     containerInfo["org_domain"],
+		"device_serial":  deviceSerial,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call certificate service: %v", err)
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("certificate service returned error: %d - %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var certResp CertificateResponse
+	if err := json.Unmarshal(bodyBytes, &certResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %v. Response was: %s", err, string(bodyBytes))
+	}
+
+	return &certResp, nil
+}
+

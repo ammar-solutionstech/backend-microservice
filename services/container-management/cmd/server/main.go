@@ -34,11 +34,15 @@ func main() {
 	containerService := services.NewContainerService(cfg, cfg.DB, certClient, csrValidator)
 	bootstrapService := services.NewBootstrapService(cfg, cfg.DB)
 	authService := services.NewAuthService()
+	orgService := services.NewOrganizationService(cfg, cfg.DB)
+	clientContainerService := services.NewClientContainerService(cfg, cfg.DB, certClient, orgService)
 
 	// Initialize controllers
 	certController := routes.NewCertificateController(certClient, csrValidator)
 	containerController := routes.NewContainerController(containerService)
 	bootstrapController := routes.NewBootstrapController(bootstrapService, containerService, certClient, csrValidator)
+	orgController := routes.NewOrganizationController(orgService)
+	clientContainerController := routes.NewClientContainerController(clientContainerService)
 
 	// Setup router
 	mux := chi.NewRouter()
@@ -53,6 +57,23 @@ func main() {
 	mux.Route("/api/v1/bootstrap", func(r chi.Router) {
 		r.Post("/register", bootstrapController.Register)
 		r.Get("/status", bootstrapController.Status)
+	})
+
+	// Organization routes
+	mux.Route("/api/v1/organizations", func(r chi.Router) {
+		r.Use(middleware.MTLSMiddleware)
+		r.Post("/", orgController.CreateOrganization)
+		r.Get("/", orgController.ListOrganizations)
+		r.Get("/{id}", orgController.GetOrganization)
+		r.Put("/{id}", orgController.UpdateOrganization)
+		r.Post("/{id}/containers", clientContainerController.RegisterClientContainer)
+		r.Get("/{id}/containers", clientContainerController.GetClientContainerByOrg)
+	})
+
+	// Client container routes
+	mux.Route("/api/v1/containers", func(r chi.Router) {
+		r.Use(middleware.MTLSMiddleware)
+		r.Get("/{container_id}", clientContainerController.GetClientContainer)
 	})
 
 	// Protected routes (require mTLS)

@@ -1,0 +1,780 @@
+{
+	"info": {
+		"_postman_id": "client-container-agent-collection",
+		"name": "ITaaS Microservices - Client Container & Agent",
+		"description": "Postman collection for testing Client Container microservice and Agent endpoints. Endpoints are ordered in logical process sequence.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Organization Management",
+			"item": [
+				{
+					"name": "Create Organization",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('organization_id', jsonData.id);",
+									"    pm.environment.set('organization_domain', jsonData.domain);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Acme Corporation\",\n    \"domain\": \"acme.example.com\",\n    \"admin_email\": \"admin@acme.example.com\",\n    \"admin_phone\": \"+1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/organizations",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "organizations"]
+						},
+						"description": "Create a new organization. This is the first step in the process."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Organization",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/organizations/{{organization_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "organizations", "{{organization_id}}"]
+						},
+						"description": "Retrieve organization details by ID."
+					},
+					"response": []
+				},
+				{
+					"name": "List Organizations",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/organizations?status=active",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "organizations"],
+							"query": [
+								{
+									"key": "status",
+									"value": "active"
+								}
+							]
+						},
+						"description": "List all organizations, optionally filtered by status."
+					},
+					"response": []
+				}
+			],
+			"description": "Organization management endpoints (container-management service)"
+		},
+		{
+			"name": "2. Client Container Registration",
+			"item": [
+				{
+					"name": "Register Client Container",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('container_id', jsonData.container_id);",
+									"    pm.environment.set('container_cert_serial', jsonData.certificate_serial);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"container_id\": \"container-{{$randomInt}}\",\n    \"name\": \"Production Container\",\n    \"endpoint_url\": \"https://client-container.example.com:8006\",\n    \"admin_email\": \"admin@acme.example.com\",\n    \"admin_phone\": \"+1234567890\",\n    \"csr_pem\": \"-----BEGIN CERTIFICATE REQUEST-----\\nMIICVjCCAT4CAQAwGjEYMBYGA1UEAwwPY29udGFpbmVyLXRlc3QwggEiMA0G\\nCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC...\\n-----END CERTIFICATE REQUEST-----\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/organizations/{{organization_id}}/containers",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "organizations", "{{organization_id}}", "containers"]
+						},
+						"description": "Register a new client container for an organization. The container will receive its certificate."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Client Container",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/containers/{{container_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "containers", "{{container_id}}"]
+						},
+						"description": "Get client container details by container ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Client Container by Organization",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/organizations/{{organization_id}}/containers",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "organizations", "{{organization_id}}", "containers"]
+						},
+						"description": "Get the client container for a specific organization."
+					},
+					"response": []
+				}
+			],
+			"description": "Client container registration endpoints (container-management service)"
+		},
+		{
+			"name": "3. Container Management",
+			"item": [
+				{
+					"name": "Get Container Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/containers/{{container_id}}",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "containers", "{{container_id}}"]
+						},
+						"description": "Get container details from client-container service."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Container",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Container Name\",\n    \"status\": \"active\"\n}"
+						},
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/containers/{{container_id}}",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "containers", "{{container_id}}"]
+						},
+						"description": "Update container information."
+					},
+					"response": []
+				},
+				{
+					"name": "Renew Container Certificate",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"csr_pem\": \"-----BEGIN CERTIFICATE REQUEST-----\\nMIICVjCCAT4CAQAwGjEYMBYGA1UEAwwPY29udGFpbmVyLXRlc3QwggEiMA0G\\nCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC...\\n-----END CERTIFICATE REQUEST-----\"\n}"
+						},
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/containers/{{container_id}}/certificate/renew",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "containers", "{{container_id}}", "certificate", "renew"]
+						},
+						"description": "Renew the container's certificate."
+					},
+					"response": []
+				}
+			],
+			"description": "Container management endpoints (client-container service)"
+		},
+		{
+			"name": "4. Device Registration & Management",
+			"item": [
+				{
+					"name": "Register Device",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('device_id', jsonData.device_id);",
+									"    pm.environment.set('device_db_id', jsonData.id);",
+									"    // Note: Verification code is sent to admin email/phone",
+									"    // In real scenario, admin would provide this code",
+									"    pm.environment.set('verification_code', '123456'); // Example code"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"device_id\": \"device-{{$randomInt}}\",\n    \"hostname\": \"workstation-01\",\n    \"os_type\": \"windows\",\n    \"os_version\": \"Windows 11\",\n    \"architecture\": \"amd64\",\n    \"ip_address\": \"192.168.1.100\",\n    \"device_serial\": \"SN-{{$randomInt}}\",\n    \"csr_pem\": \"-----BEGIN CERTIFICATE REQUEST-----\\nMIICVjCCAT4CAQAwGjEYMBYGA1UEAwwPZGV2aWNlLVNOXzEyMzQ1NjwggEiMA0G\\nCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC...\\n-----END CERTIFICATE REQUEST-----\"\n}"
+						},
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/devices",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "devices"]
+						},
+						"description": "Register a new device. A verification code will be generated and sent to the organization admin. The device status will be 'pending' until verification."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Code and Issue Certificate",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('agent_cert_serial', jsonData.certificate_serial);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"verification_code\": \"{{verification_code}}\",\n    \"csr_pem\": \"-----BEGIN CERTIFICATE REQUEST-----\\nMIICVjCCAT4CAQAwGjEYMBYGA1UEAwwPZGV2aWNlLVNOXzEyMzQ1NjwggEiMA0G\\nCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC...\\n-----END CERTIFICATE REQUEST-----\"\n}"
+						},
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/devices/{{device_db_id}}/verify",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "devices", "{{device_db_id}}", "verify"]
+						},
+						"description": "Verify the verification code and issue the agent certificate. The verification code is sent to the organization admin via email/SMS after device registration."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Device Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/devices/{{device_db_id}}",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "devices", "{{device_db_id}}"]
+						},
+						"description": "Get device details by device ID."
+					},
+					"response": []
+				},
+				{
+					"name": "List Devices",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/devices?status=active",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "devices"],
+							"query": [
+								{
+									"key": "status",
+									"value": "active",
+									"description": "Filter by status: active, inactive, revoked, pending"
+								}
+							]
+						},
+						"description": "List all devices for the container, optionally filtered by status."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Device",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"hostname\": \"updated-workstation-01\",\n    \"ip_address\": \"192.168.1.101\"\n}"
+						},
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/devices/{{device_db_id}}",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "devices", "{{device_db_id}}"]
+						},
+						"description": "Update device information."
+					},
+					"response": []
+				},
+				{
+					"name": "Renew Device Certificate",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"csr_pem\": \"-----BEGIN CERTIFICATE REQUEST-----\\nMIICVjCCAT4CAQAwGjEYMBYGA1UEAwwPZGV2aWNlLVNOXzEyMzQ1NjwggEiMA0G\\nCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC...\\n-----END CERTIFICATE REQUEST-----\"\n}"
+						},
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/devices/{{device_db_id}}/certificate/renew",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "devices", "{{device_db_id}}", "certificate", "renew"]
+						},
+						"description": "Renew the device's agent certificate."
+					},
+					"response": []
+				},
+				{
+					"name": "Revoke Device",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/devices/{{device_db_id}}",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "devices", "{{device_db_id}}"]
+						},
+						"description": "Revoke a device and its certificate. This will mark the device as 'revoked' and revoke its certificate."
+					},
+					"response": []
+				}
+			],
+			"description": "Device registration and management endpoints (client-container service)"
+		},
+		{
+			"name": "5. Telemetry",
+			"item": [
+				{
+					"name": "Submit Telemetry",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"device_id\": \"{{device_db_id}}\",\n    \"metric_name\": \"cpu_usage\",\n    \"metric_value\": {\n        \"cpu_percent\": 45.5,\n        \"cores\": 8,\n        \"load_avg\": 2.3\n    },\n    \"timestamp\": \"2024-01-15T10:30:00Z\",\n    \"tags\": {\n        \"environment\": \"production\",\n        \"region\": \"us-east-1\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/telemetry",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "telemetry"]
+						},
+						"description": "Submit telemetry data from a device."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Device Telemetry",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/telemetry/devices/{{device_db_id}}?start_time=2024-01-15T00:00:00Z&end_time=2024-01-15T23:59:59Z",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "telemetry", "devices", "{{device_db_id}}"],
+							"query": [
+								{
+									"key": "start_time",
+									"value": "2024-01-15T00:00:00Z",
+									"description": "Start time for telemetry query (ISO 8601)"
+								},
+								{
+									"key": "end_time",
+									"value": "2024-01-15T23:59:59Z",
+									"description": "End time for telemetry query (ISO 8601)"
+								},
+								{
+									"key": "metric_name",
+									"value": "cpu_usage",
+									"description": "Optional: Filter by metric name",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get telemetry data for a specific device within a time range."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Telemetry Metrics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/telemetry/metrics?device_id={{device_db_id}}&metric_names=cpu_usage,memory_usage&start_time=2024-01-15T00:00:00Z&end_time=2024-01-15T23:59:59Z",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "telemetry", "metrics"],
+							"query": [
+								{
+									"key": "device_id",
+									"value": "{{device_db_id}}"
+								},
+								{
+									"key": "metric_names",
+									"value": "cpu_usage,memory_usage",
+									"description": "Comma-separated list of metric names"
+								},
+								{
+									"key": "start_time",
+									"value": "2024-01-15T00:00:00Z"
+								},
+								{
+									"key": "end_time",
+									"value": "2024-01-15T23:59:59Z"
+								}
+							]
+						},
+						"description": "Get aggregated telemetry metrics for a device."
+					},
+					"response": []
+				},
+				{
+					"name": "Query Telemetry",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/telemetry?device_id={{device_db_id}}&metric_name=cpu_usage&start_time=2024-01-15T00:00:00Z&end_time=2024-01-15T23:59:59Z",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "telemetry"],
+							"query": [
+								{
+									"key": "device_id",
+									"value": "{{device_db_id}}"
+								},
+								{
+									"key": "metric_name",
+									"value": "cpu_usage"
+								},
+								{
+									"key": "start_time",
+									"value": "2024-01-15T00:00:00Z"
+								},
+								{
+									"key": "end_time",
+									"value": "2024-01-15T23:59:59Z"
+								}
+							]
+						},
+						"description": "Query telemetry data with filters."
+					},
+					"response": []
+				}
+			],
+			"description": "Telemetry ingestion and querying endpoints (client-container service)"
+		},
+		{
+			"name": "6. Plugin Management",
+			"item": [
+				{
+					"name": "Create Plugin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('plugin_id', jsonData.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"system-monitor\",\n    \"version\": \"1.0.0\",\n    \"description\": \"System monitoring plugin\",\n    \"plugin_type\": \"monitoring\",\n    \"download_url\": \"https://plugins.example.com/system-monitor-1.0.0.tar.gz\",\n    \"checksum\": \"sha256:abc123...\",\n    \"config_schema\": {\n        \"type\": \"object\",\n        \"properties\": {\n            \"interval\": {\n                \"type\": \"number\",\n                \"default\": 60\n            }\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/plugins",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "plugins"]
+						},
+						"description": "Create a new plugin that can be deployed to devices."
+					},
+					"response": []
+				},
+				{
+					"name": "List Plugins",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/plugins",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "plugins"]
+						},
+						"description": "List all plugins for the container."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Plugin Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/plugins/{{plugin_id}}",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "plugins", "{{plugin_id}}"]
+						},
+						"description": "Get plugin details by plugin ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Plugin",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"version\": \"1.1.0\",\n    \"description\": \"Updated system monitoring plugin\",\n    \"download_url\": \"https://plugins.example.com/system-monitor-1.1.0.tar.gz\",\n    \"checksum\": \"sha256:def456...\"\n}"
+						},
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/plugins/{{plugin_id}}",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "plugins", "{{plugin_id}}"]
+						},
+						"description": "Update plugin information."
+					},
+					"response": []
+				},
+				{
+					"name": "Deploy Plugin to Devices",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"device_ids\": [{{device_db_id}}],\n    \"config\": {\n        \"interval\": 30\n    }\n}"
+						},
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/plugins/{{plugin_id}}/deploy",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "plugins", "{{plugin_id}}", "deploy"]
+						},
+						"description": "Deploy a plugin to one or more devices. The plugin will be downloaded and installed on the agents."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Plugin Deployment Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/plugins/{{plugin_id}}/status?device_id={{device_db_id}}",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "plugins", "{{plugin_id}}", "status"],
+							"query": [
+								{
+									"key": "device_id",
+									"value": "{{device_db_id}}"
+								}
+							]
+						},
+						"description": "Get the deployment status of a plugin on a specific device."
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Plugin from Devices",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"device_ids\": [{{device_db_id}}]\n}"
+						},
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/plugins/{{plugin_id}}/remove",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "plugins", "{{plugin_id}}", "remove"]
+						},
+						"description": "Remove a plugin from one or more devices."
+					},
+					"response": []
+				}
+			],
+			"description": "Plugin management and deployment endpoints (client-container service)"
+		},
+		{
+			"name": "7. Agent Download",
+			"item": [
+				{
+					"name": "Download Agent Binary",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{client_container_url}}/api/v1/agents/download?os=windows&arch=amd64",
+							"host": ["{{client_container_url}}"],
+							"path": ["api", "v1", "agents", "download"],
+							"query": [
+								{
+									"key": "os",
+									"value": "windows",
+									"description": "Operating system: windows, linux, darwin"
+								},
+								{
+									"key": "arch",
+									"value": "amd64",
+									"description": "Architecture: amd64, arm64, 386"
+								}
+							]
+						},
+						"description": "Download the agent binary for a specific OS and architecture. The binary will have container information embedded."
+					},
+					"response": []
+				}
+			],
+			"description": "Agent download endpoint (client-container service)"
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://container-management-service:8005",
+			"type": "string"
+		},
+		{
+			"key": "client_container_url",
+			"value": "https://client-container-service:8006",
+			"type": "string"
+		},
+		{
+			"key": "organization_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "organization_domain",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "container_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "container_cert_serial",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "device_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "device_db_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "verification_code",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "agent_cert_serial",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "plugin_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+
