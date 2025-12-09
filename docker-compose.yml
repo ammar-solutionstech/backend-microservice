@@ -139,7 +139,7 @@ services:
 
   # step-ca (Optional - can use existing instance)
   step-ca:
-    image: smallstep/step-ca:latest
+    image: smallstep/step-ca
     container_name: step-ca
     environment:
       STEP_CA_NAME: ITaaS CA
@@ -147,10 +147,13 @@ services:
       STEP_CA_DNS: localhost
       STEP_CA_PROVISIONER_NAME: ${STEP_CA_PROVISIONER:-admin}
       STEP_CA_PROVISIONER_PASSWORD: ${STEP_CA_PROVISIONER_PASSWORD:-password}
+      DOCKER_STEPCA_INIT_NAME: "ITaaS CA"
+      DOCKER_STEPCA_INIT_DNS_NAMES: "localhost"
+      DOCKER_STEPCA_INIT_PASSWORD: "password"
     ports:
       - "9000:9000"
     volumes:
-      - step-ca-data:/home/step
+      - D:\stepca\stepca:/home/step
     networks:
       - microservices-network
     profiles:
