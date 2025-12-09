@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"log"
 	"net/http"
 	"os"
@@ -30,12 +29,25 @@ func main() {
 	// Initialize CSR validator
 	csrValidator := services.NewCSRValidator(cfg)
 
+	// Initialize Docker client
+	dockerClient, err := services.NewDockerClient(cfg.DockerHost)
+	if err != nil {
+		log.Fatalf("failed to create Docker client: %v", err)
+	}
+	defer dockerClient.Close()
+
+	// Initialize container orchestrator
+	orchestrator := services.NewContainerOrchestrator(dockerClient, cfg)
+
+	// Initialize service manager
+	serviceManager := services.NewServiceManager(cfg, cfg.DB, dockerClient)
+
 	// Initialize services
 	containerService := services.NewContainerService(cfg, cfg.DB, certClient, csrValidator)
 	bootstrapService := services.NewBootstrapService(cfg, cfg.DB)
-	authService := services.NewAuthService()
 	orgService := services.NewOrganizationService(cfg, cfg.DB)
-	clientContainerService := services.NewClientContainerService(cfg, cfg.DB, certClient, orgService)
+	clientContainerService := services.NewClientContainerService(cfg, cfg.DB, certClient, orgService, orchestrator, dockerClient)
+	authService := services.NewAuthService()
 
 	// Initialize controllers
 	certController := routes.NewCertificateController(certClient, csrValidator)
@@ -43,6 +55,7 @@ func main() {
 	bootstrapController := routes.NewBootstrapController(bootstrapService, containerService, certClient, csrValidator)
 	orgController := routes.NewOrganizationController(orgService)
 	clientContainerController := routes.NewClientContainerController(clientContainerService)
+	serviceController := routes.NewServiceController(serviceManager)
 
 	// Setup router
 	mux := chi.NewRouter()
@@ -70,16 +83,32 @@ func main() {
 		r.Get("/{id}/containers", clientContainerController.GetClientContainerByOrg)
 	})
 
-	// Client container routes
-	mux.Route("/api/v1/containers", func(r chi.Router) {
-		r.Use(middleware.MTLSMiddleware)
-		r.Get("/{container_id}", clientContainerController.GetClientContainer)
-	})
-
 	// Protected routes (require mTLS)
 	mux.Route("/api/v1", func(r chi.Router) {
-		// Apply mTLS middleware to all routes except bootstrap
 		r.Use(middleware.MTLSMiddleware)
+		r.Use(middleware.CertAuthMiddleware(authService, "", "")) // Apply cert auth middleware (no specific role/permission required)
+
+		// Client container routes
+		r.Route("/containers", func(cont chi.Router) {
+			cont.Get("/{container_id}", clientContainerController.GetClientContainer)
+			cont.Post("/{container_id}/start", clientContainerController.StartContainer)
+			cont.Post("/{container_id}/stop", clientContainerController.StopContainer)
+			cont.Post("/{container_id}/restart", clientContainerController.RestartContainer)
+			cont.Put("/{container_id}/update", clientContainerController.UpdateContainer)
+			cont.Delete("/{container_id}", clientContainerController.RemoveContainer)
+			cont.Get("/{container_id}/status", clientContainerController.GetContainerStatus)
+
+			// Service management routes
+			cont.Route("/{container_id}/services", func(svc chi.Router) {
+				svc.Post("/", serviceController.AddService)
+				svc.Get("/", serviceController.ListServices)
+				svc.Get("/{service_name}", serviceController.GetService)
+				svc.Put("/{service_name}", serviceController.UpdateService)
+				svc.Post("/{service_name}/enable", serviceController.EnableService)
+				svc.Post("/{service_name}/disable", serviceController.DisableService)
+				svc.Delete("/{service_name}", serviceController.RemoveService)
+			})
+		})
 
 		// Certificate routes
 		r.Route("/certificates", func(cert chi.Router) {
@@ -89,7 +118,7 @@ func main() {
 			cert.Post("/{serial}/revoke", certController.RevokeCertificate)
 		})
 
-		// Container routes
+		// Container routes (legacy)
 		r.Route("/containers/{container_id}", func(cont chi.Router) {
 			cont.Route("/certificates", func(cert chi.Router) {
 				cert.Post("/request", containerController.RequestContainerCertificate)
@@ -146,4 +175,3 @@ func main() {
 	}
 	log.Println("container management service stopped cleanly")
 }
-

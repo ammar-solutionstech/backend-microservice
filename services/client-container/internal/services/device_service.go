@@ -125,17 +125,11 @@ func (s *DeviceService) VerifyAndIssueCertificate(deviceID int, verificationCode
 	// In a real implementation, you might store the CSR temporarily
 	// For this implementation, we assume the CSR is provided again or stored
 
-	// Request certificate from container-management service
-	containerInfo := map[string]string{
-		"container_id": container.ContainerID,
-		"org_id":        fmt.Sprintf("%d", container.OrganizationID),
-		"org_domain":    "", // Will be retrieved from organization if needed
-	}
-
 	// Note: CSR should be retrieved from registration or provided
 	// For now, we'll need to modify this to accept CSR
 	// This is a placeholder - actual implementation should store CSR during registration
-	return nil, fmt.Errorf("CSR must be provided - implementation needs to store CSR during registration")
+	// Use VerifyAndIssueCertificateWithCSR instead which accepts CSR as parameter
+	return nil, fmt.Errorf("CSR must be provided - use VerifyAndIssueCertificateWithCSR instead")
 }
 
 // VerifyAndIssueCertificateWithCSR verifies code and issues certificate with provided CSR

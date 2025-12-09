@@ -3,9 +3,6 @@ package routes
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
-
-	"github.com/go-chi/chi"
 
 	"backend/services/container-management/internal/services"
 )

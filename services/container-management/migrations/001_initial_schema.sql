@@ -71,6 +71,11 @@ CREATE TABLE IF NOT EXISTS client_containers (
     container_endpoint_url VARCHAR(500),
     admin_email VARCHAR(255) NOT NULL,
     admin_phone VARCHAR(255),
+    docker_container_id VARCHAR(255),
+    docker_container_name VARCHAR(255),
+    docker_status VARCHAR(50),
+    services JSONB,
+    container_config JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -78,4 +83,23 @@ CREATE TABLE IF NOT EXISTS client_containers (
 CREATE INDEX IF NOT EXISTS idx_client_containers_organization_id ON client_containers(organization_id);
 CREATE INDEX IF NOT EXISTS idx_client_containers_container_id ON client_containers(container_id);
 CREATE INDEX IF NOT EXISTS idx_client_containers_status ON client_containers(status);
+CREATE INDEX IF NOT EXISTS idx_client_containers_docker_container_id ON client_containers(docker_container_id);
+
+-- Container services table
+CREATE TABLE IF NOT EXISTS container_services (
+    id SERIAL PRIMARY KEY,
+    container_id VARCHAR(255) NOT NULL,
+    service_name VARCHAR(255) NOT NULL,
+    service_type VARCHAR(50) NOT NULL,
+    service_config JSONB,
+    status VARCHAR(50) DEFAULT 'inactive',
+    enabled BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_container_services_container_id ON container_services(container_id);
+CREATE INDEX IF NOT EXISTS idx_container_services_service_name ON container_services(service_name);
+CREATE INDEX IF NOT EXISTS idx_container_services_status ON container_services(status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_container_services_container_service ON container_services(container_id, service_name);
 

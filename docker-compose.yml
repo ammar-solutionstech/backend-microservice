@@ -211,10 +211,15 @@ services:
       MTLS_SERVER_CERT: /certs/server.crt
       MTLS_SERVER_KEY: /certs/server.key
       BOOTSTRAP_TOKEN_SECRET: ${BOOTSTRAP_TOKEN_SECRET:-change-me-in-production}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      CLIENT_CONTAINER_IMAGE: ${CLIENT_CONTAINER_IMAGE:-client-container:latest}
+      CLIENT_CONTAINER_IMAGE_TAG: ${CLIENT_CONTAINER_IMAGE_TAG:-latest}
+      DOCKER_NETWORK: microservices-network
     ports:
       - "8005:8005"
     volumes:
       - ./certs:/certs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       certificate-service:
         condition: service_started

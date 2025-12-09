@@ -27,19 +27,19 @@ type Config struct {
 	Port string
 
 	// Certificate Service Connection (mTLS)
-	CertificateServiceURL      string
-	CertificateServiceCA       string
-	CertificateServiceCert     string
-	CertificateServiceKey      string
-	CertificateServiceKeyPass  string
+	CertificateServiceURL       string
+	CertificateServiceCA        string
+	CertificateServiceCert      string
+	CertificateServiceKey       string
+	CertificateServiceKeyPass   string
 	CertificateServiceTLSConfig *tls.Config
 
 	// mTLS Server Configuration
-	MTLSCACert     string
-	MTLSServerCert string
-	MTLSServerKey  string
+	MTLSCACert        string
+	MTLSServerCert    string
+	MTLSServerKey     string
 	MTLSServerKeyPass string
-	MTLSTLSConfig  *tls.Config
+	MTLSTLSConfig     *tls.Config
 
 	// Bootstrap Token
 	BootstrapTokenSecret string
@@ -47,6 +47,24 @@ type Config struct {
 	// CSR Validation Rules
 	CSRRequiredOrg     string
 	CSRRequiredCountry string
+
+	// Docker Configuration
+	DockerHost string
+
+	// Client Container Configuration
+	ClientContainerImage      string
+	ClientContainerImageTag   string
+	ClientContainerPort       string
+	ClientContainerGRPCPort   string
+	ClientContainerDBHost     string
+	ClientContainerDBPort     string
+	ClientContainerDBName     string
+	ClientContainerDBUser     string
+	ClientContainerDBPassword string
+	ContainerMgmtServiceURL   string
+	NotificationServiceGRPC   string
+	CertificatesPath          string
+	DockerNetwork             string
 }
 
 func Load() *Config {
@@ -61,7 +79,7 @@ func Load() *Config {
 		Port:                      getEnv("CONTAINER_MGMT_PORT", "8005"),
 		CertificateServiceURL:     getEnv("CERTIFICATE_SERVICE_URL", "https://certificate-service:8004"),
 		CertificateServiceCA:      getEnv("CERTIFICATE_SERVICE_CA", ""),
-		CertificateServiceCert:     getEnv("CERTIFICATE_SERVICE_CERT", ""),
+		CertificateServiceCert:    getEnv("CERTIFICATE_SERVICE_CERT", ""),
 		CertificateServiceKey:     getEnv("CERTIFICATE_SERVICE_KEY", ""),
 		CertificateServiceKeyPass: getEnv("CERTIFICATE_SERVICE_KEY_PASSWORD", ""),
 		MTLSCACert:                getEnv("MTLS_CA_CERT", ""),
@@ -71,6 +89,20 @@ func Load() *Config {
 		BootstrapTokenSecret:      getEnv("BOOTSTRAP_TOKEN_SECRET", ""),
 		CSRRequiredOrg:            getEnv("CSR_REQUIRED_ORG", ""),
 		CSRRequiredCountry:        getEnv("CSR_REQUIRED_COUNTRY", ""),
+		DockerHost:                getEnv("DOCKER_HOST", "unix:///var/run/docker.sock"),
+		ClientContainerImage:      getEnv("CLIENT_CONTAINER_IMAGE", "client-container"),
+		ClientContainerImageTag:   getEnv("CLIENT_CONTAINER_IMAGE_TAG", "latest"),
+		ClientContainerPort:       getEnv("CLIENT_CONTAINER_PORT", "8006"),
+		ClientContainerGRPCPort:   getEnv("CLIENT_CONTAINER_GRPC_PORT", "9006"),
+		ClientContainerDBHost:     getEnv("CLIENT_CONTAINER_DB_HOST", "localhost"),
+		ClientContainerDBPort:     getEnv("CLIENT_CONTAINER_DB_PORT", "5432"),
+		ClientContainerDBName:     getEnv("CLIENT_CONTAINER_DB_NAME", "client_container_db"),
+		ClientContainerDBUser:     getEnv("CLIENT_CONTAINER_DB_USER", "postgres"),
+		ClientContainerDBPassword: getEnv("CLIENT_CONTAINER_DB_PASSWORD", "postgres"),
+		ContainerMgmtServiceURL:   getEnv("CONTAINER_MGMT_SERVICE_URL", "https://container-management-service:8005"),
+		NotificationServiceGRPC:   getEnv("NOTIFICATION_SERVICE_GRPC", "notification-service:9003"),
+		CertificatesPath:          getEnv("CERTIFICATES_PATH", "/certs"),
+		DockerNetwork:             getEnv("DOCKER_NETWORK", "itaas-network"),
 	}
 
 	if cfg.BootstrapTokenSecret == "" {
@@ -196,4 +228,3 @@ func getBoolEnv(key string, defaultValue bool) bool {
 	}
 	return defaultValue
 }
-

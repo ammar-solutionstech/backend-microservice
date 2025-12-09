@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -16,22 +17,26 @@ type ClientContainerService struct {
 	certClient      *CertificateClient
 	config          *config.Config
 	organizationSvc *OrganizationService
+	orchestrator    *ContainerOrchestrator
+	dockerClient    *DockerClient
 }
 
 // NewClientContainerService creates a new client container service
-func NewClientContainerService(cfg *config.Config, db *gorm.DB, certClient *CertificateClient, orgSvc *OrganizationService) *ClientContainerService {
+func NewClientContainerService(cfg *config.Config, db *gorm.DB, certClient *CertificateClient, orgSvc *OrganizationService, orchestrator *ContainerOrchestrator, dockerClient *DockerClient) *ClientContainerService {
 	return &ClientContainerService{
 		db:              db,
 		certClient:      certClient,
 		config:          cfg,
 		organizationSvc: orgSvc,
+		orchestrator:    orchestrator,
+		dockerClient:    dockerClient,
 	}
 }
 
 // RegisterClientContainer registers a new client container for an organization
 func (s *ClientContainerService) RegisterClientContainer(orgID int, containerID, name, endpointURL, adminEmail string, adminPhone *string, csrPEM string) (*models.ClientContainer, error) {
 	// Verify organization exists
-	org, err := s.organizationSvc.GetOrganization(orgID)
+	_, err := s.organizationSvc.GetOrganization(orgID)
 	if err != nil {
 		return nil, fmt.Errorf("organization not found: %v", err)
 	}
@@ -63,20 +68,45 @@ func (s *ClientContainerService) RegisterClientContainer(orgID int, containerID,
 
 	// Create client container record
 	clientContainer := &models.ClientContainer{
-		OrganizationID:      orgID,
-		ContainerID:         containerID,
-		Name:                name,
-		Status:              "active",
-		CertificateSerial:   &cert.SerialNumber,
+		OrganizationID:       orgID,
+		ContainerID:          containerID,
+		Name:                 name,
+		Status:               "active",
+		CertificateSerial:    &cert.SerialNumber,
 		ContainerEndpointURL: endpointURL,
-		AdminEmail:          adminEmail,
-		AdminPhone:          adminPhone,
+		AdminEmail:           adminEmail,
+		AdminPhone:           adminPhone,
 		CreatedAt:            time.Now(),
 		UpdatedAt:            time.Now(),
 	}
 
 	if err := s.db.Create(clientContainer).Error; err != nil {
 		return nil, fmt.Errorf("failed to create client container: %v", err)
+	}
+
+	// Create Docker container
+	ctx := context.Background()
+	dockerContainerID, err := s.orchestrator.CreateClientContainer(ctx, orgID, containerID, clientContainer, cert.SerialNumber)
+	if err != nil {
+		// Rollback database record
+		s.db.Delete(clientContainer)
+		return nil, fmt.Errorf("failed to create Docker container: %v", err)
+	}
+
+	// Get container name
+	containerName := s.orchestrator.GenerateContainerName(containerID)
+	dockerStatus := "running"
+
+	// Update client container with Docker information
+	clientContainer.DockerContainerID = &dockerContainerID
+	clientContainer.DockerContainerName = &containerName
+	clientContainer.DockerStatus = &dockerStatus
+	clientContainer.UpdatedAt = time.Now()
+
+	if err := s.db.Save(clientContainer).Error; err != nil {
+		// Try to remove Docker container
+		s.dockerClient.RemoveContainer(ctx, dockerContainerID, true)
+		return nil, fmt.Errorf("failed to update client container with Docker info: %v", err)
 	}
 
 	return clientContainer, nil
@@ -118,3 +148,151 @@ func (s *ClientContainerService) UpdateClientContainer(containerID string, updat
 	return nil
 }
 
+// StartContainer starts a Docker container
+func (s *ClientContainerService) StartContainer(containerID string) error {
+	var clientContainer models.ClientContainer
+	if err := s.db.Where("container_id = ?", containerID).First(&clientContainer).Error; err != nil {
+		return fmt.Errorf("container not found: %v", err)
+	}
+
+	if clientContainer.DockerContainerID == nil {
+		return fmt.Errorf("container has no Docker container ID")
+	}
+
+	ctx := context.Background()
+	if err := s.dockerClient.StartContainer(ctx, *clientContainer.DockerContainerID); err != nil {
+		return fmt.Errorf("failed to start container: %v", err)
+	}
+
+	// Update database status
+	status := "running"
+	clientContainer.DockerStatus = &status
+	clientContainer.UpdatedAt = time.Now()
+	s.db.Save(&clientContainer)
+
+	return nil
+}
+
+// StopContainer stops a Docker container
+func (s *ClientContainerService) StopContainer(containerID string) error {
+	var clientContainer models.ClientContainer
+	if err := s.db.Where("container_id = ?", containerID).First(&clientContainer).Error; err != nil {
+		return fmt.Errorf("container not found: %v", err)
+	}
+
+	if clientContainer.DockerContainerID == nil {
+		return fmt.Errorf("container has no Docker container ID")
+	}
+
+	ctx := context.Background()
+	if err := s.dockerClient.StopContainer(ctx, *clientContainer.DockerContainerID, nil); err != nil {
+		return fmt.Errorf("failed to stop container: %v", err)
+	}
+
+	// Update database status
+	status := "stopped"
+	clientContainer.DockerStatus = &status
+	clientContainer.UpdatedAt = time.Now()
+	s.db.Save(&clientContainer)
+
+	return nil
+}
+
+// RestartContainer restarts a Docker container
+func (s *ClientContainerService) RestartContainer(containerID string) error {
+	var clientContainer models.ClientContainer
+	if err := s.db.Where("container_id = ?", containerID).First(&clientContainer).Error; err != nil {
+		return fmt.Errorf("container not found: %v", err)
+	}
+
+	if clientContainer.DockerContainerID == nil {
+		return fmt.Errorf("container has no Docker container ID")
+	}
+
+	ctx := context.Background()
+	if err := s.dockerClient.RestartContainer(ctx, *clientContainer.DockerContainerID, nil); err != nil {
+		return fmt.Errorf("failed to restart container: %v", err)
+	}
+
+	// Update database status
+	status := "running"
+	clientContainer.DockerStatus = &status
+	clientContainer.UpdatedAt = time.Now()
+	s.db.Save(&clientContainer)
+
+	return nil
+}
+
+// RemoveContainer removes a Docker container
+func (s *ClientContainerService) RemoveContainer(containerID string) error {
+	var clientContainer models.ClientContainer
+	if err := s.db.Where("container_id = ?", containerID).First(&clientContainer).Error; err != nil {
+		return fmt.Errorf("container not found: %v", err)
+	}
+
+	if clientContainer.DockerContainerID == nil {
+		return fmt.Errorf("container has no Docker container ID")
+	}
+
+	ctx := context.Background()
+	if err := s.dockerClient.RemoveContainer(ctx, *clientContainer.DockerContainerID, true); err != nil {
+		return fmt.Errorf("failed to remove container: %v", err)
+	}
+
+	// Update database status
+	status := "removed"
+	clientContainer.DockerStatus = &status
+	clientContainer.Status = "inactive"
+	clientContainer.UpdatedAt = time.Now()
+	s.db.Save(&clientContainer)
+
+	return nil
+}
+
+// GetContainerStatus gets the Docker container status
+func (s *ClientContainerService) GetContainerStatus(containerID string) (string, error) {
+	var clientContainer models.ClientContainer
+	if err := s.db.Where("container_id = ?", containerID).First(&clientContainer).Error; err != nil {
+		return "", fmt.Errorf("container not found: %v", err)
+	}
+
+	if clientContainer.DockerContainerID == nil {
+		return "", fmt.Errorf("container has no Docker container ID")
+	}
+
+	ctx := context.Background()
+	status, err := s.dockerClient.GetContainerStatus(ctx, *clientContainer.DockerContainerID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get container status: %v", err)
+	}
+
+	// Update database with current status
+	clientContainer.DockerStatus = &status
+	clientContainer.UpdatedAt = time.Now()
+	s.db.Save(&clientContainer)
+
+	return status, nil
+}
+
+// UpdateContainerConfiguration updates the Docker container configuration
+func (s *ClientContainerService) UpdateContainerConfiguration(containerID string, updates map[string]interface{}) error {
+	var clientContainer models.ClientContainer
+	if err := s.db.Where("container_id = ?", containerID).First(&clientContainer).Error; err != nil {
+		return fmt.Errorf("container not found: %v", err)
+	}
+
+	if clientContainer.DockerContainerID == nil {
+		return fmt.Errorf("container has no Docker container ID")
+	}
+
+	// TODO: Implement container update logic using Docker API
+	// This would involve updating container resources, restart policy, etc.
+
+	// Update database record
+	updates["updated_at"] = time.Now()
+	if err := s.db.Model(&clientContainer).Updates(updates).Error; err != nil {
+		return fmt.Errorf("failed to update container configuration: %v", err)
+	}
+
+	return nil
+}

@@ -1,8 +1,7 @@
 package models
 
 import (
-	"database/sql/driver"
-	"encoding/json"
+	"backend/services/client-container/internal/utils"
 	"time"
 )
 
@@ -16,7 +15,7 @@ type Plugin struct {
 	PluginType  string    `gorm:"column:plugin_type;type:varchar(50)" json:"plugin_type"`
 	DownloadURL string    `gorm:"column:download_url;type:varchar(500)" json:"download_url"`
 	Checksum    string    `gorm:"column:checksum;type:varchar(255)" json:"checksum"`
-	ConfigSchema JSONB    `gorm:"column:config_schema;type:jsonb" json:"config_schema,omitempty"`
+	ConfigSchema utils.JSONB    `gorm:"column:config_schema;type:jsonb" json:"config_schema,omitempty"`
 	Status      string    `gorm:"column:status;type:varchar(50);default:'active'" json:"status"` // active, deprecated
 	CreatedAt   time.Time `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt   time.Time `gorm:"column:updated_at;default:CURRENT_TIMESTAMP" json:"updated_at"`
@@ -25,26 +24,3 @@ type Plugin struct {
 func (Plugin) TableName() string {
 	return "plugins"
 }
-
-// JSONB is a custom type for PostgreSQL JSONB
-type JSONB map[string]interface{}
-
-func (j JSONB) Value() (driver.Value, error) {
-	if j == nil {
-		return nil, nil
-	}
-	return json.Marshal(j)
-}
-
-func (j *JSONB) Scan(value interface{}) error {
-	if value == nil {
-		*j = nil
-		return nil
-	}
-	bytes, ok := value.([]byte)
-	if !ok {
-		return nil
-	}
-	return json.Unmarshal(bytes, j)
-}
-

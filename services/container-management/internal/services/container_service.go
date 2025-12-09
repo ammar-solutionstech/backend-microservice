@@ -12,10 +12,10 @@ import (
 
 // ContainerService manages container registrations and certificate requests
 type ContainerService struct {
-	db            *gorm.DB
-	certClient    *CertificateClient
-	csrValidator  *CSRValidator
-	config        *config.Config
+	db           *gorm.DB
+	certClient   *CertificateClient
+	csrValidator *CSRValidator
+	config       *config.Config
 }
 
 // NewContainerService creates a new container service
@@ -46,7 +46,7 @@ func (s *ContainerService) RegisterContainer(containerID, name string, metadata 
 	}
 
 	if metadata != nil {
-		container.Metadata = models.JSONB(metadata)
+		container.Metadata = metadata
 	}
 
 	if err := s.db.Create(container).Error; err != nil {
@@ -184,3 +184,21 @@ func (s *ContainerService) GetContainer(containerID string) (*models.Container, 
 	return &container, nil
 }
 
+// UpdateContainerCertificateSerial updates the certificate serial for a container
+func (s *ContainerService) UpdateContainerCertificateSerial(containerID, serial string) error {
+	var container models.Container
+	if err := s.db.Where("container_id = ?", containerID).First(&container).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fmt.Errorf("container not found")
+		}
+		return fmt.Errorf("failed to get container: %v", err)
+	}
+
+	container.CertificateSerial = &serial
+	container.UpdatedAt = time.Now()
+	if err := s.db.Save(&container).Error; err != nil {
+		return fmt.Errorf("failed to update container certificate serial: %v", err)
+	}
+
+	return nil
+}
