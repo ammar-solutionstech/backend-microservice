@@ -1,6 +1,33 @@
 # version: '3.8'
 
 services:
+  # step-ca (Optional - can use existing instance)
+  step-ca:
+    image: smallstep/step-ca
+    container_name: step-ca
+    environment:
+      STEP_CA_NAME: ITaaS CA
+      STEP_CA_ADDRESS: :9000
+      STEP_CA_DNS: localhost
+      STEP_CA_PROVISIONER_NAME: ${STEP_CA_PROVISIONER:-admin}
+      STEP_CA_PROVISIONER_PASSWORD: ${STEP_CA_PROVISIONER_PASSWORD:-password}
+      DOCKER_STEPCA_INIT_NAME: "ITaaS CA"
+      DOCKER_STEPCA_INIT_DNS_NAMES: "localhost"
+      DOCKER_STEPCA_INIT_PASSWORD: "password"
+    ports:
+      - "9000:9000"
+    volumes:
+      - D:\stepca\stepca:/home/step
+    networks:
+      - microservices-network
+    profiles:
+      - step-ca  # Only start if explicitly requested
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # PostgreSQL Databases
   postgres-itaas:
     build:
@@ -14,6 +41,32 @@ services:
       - "5432:5432"
     volumes:
       - postgres-itaas-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Client Container
+  client-container:
+    build:
+      context: .
+      dockerfile: ./services/client-container/Dockerfile
+    container_name: client-container
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: client_container_db
+      POSTGRES_PORT: 5432
+    ports:
+      - "5432:5432"
+      - "8006:8006"
+      - "9006:9006"
+    volumes:
+      - ./certs:/certs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - microservices-network
     healthcheck:
@@ -136,33 +189,6 @@ services:
         condition: service_healthy
     networks:
       - microservices-network
-
-  # step-ca (Optional - can use existing instance)
-  step-ca:
-    image: smallstep/step-ca
-    container_name: step-ca
-    environment:
-      STEP_CA_NAME: ITaaS CA
-      STEP_CA_ADDRESS: :9000
-      STEP_CA_DNS: localhost
-      STEP_CA_PROVISIONER_NAME: ${STEP_CA_PROVISIONER:-admin}
-      STEP_CA_PROVISIONER_PASSWORD: ${STEP_CA_PROVISIONER_PASSWORD:-password}
-      DOCKER_STEPCA_INIT_NAME: "ITaaS CA"
-      DOCKER_STEPCA_INIT_DNS_NAMES: "localhost"
-      DOCKER_STEPCA_INIT_PASSWORD: "password"
-    ports:
-      - "9000:9000"
-    volumes:
-      - D:\stepca\stepca:/home/step
-    networks:
-      - microservices-network
-    profiles:
-      - step-ca  # Only start if explicitly requested
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   # Certificate Service
   certificate-service:
