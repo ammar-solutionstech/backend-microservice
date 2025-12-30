@@ -22,26 +22,32 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o client-container 
 # Runtime stage
 FROM postgres:15-alpine
 
-# Copy init script
-COPY scripts/init-db.sh /docker-entrypoint-initdb.d/
-RUN chmod +x /docker-entrypoint-initdb.d/init-db.sh
+# Copy init script for database initialization
+COPY services/client-container/scripts/init-client-container-db.sh /docker-entrypoint-initdb.d/
+RUN chmod +x /docker-entrypoint-initdb.d/init-client-container-db.sh
 
 # Copy migration files
 COPY services/client-container/migrations /migrations/client-container
 
 RUN apk --no-cache add ca-certificates tzdata
 
-WORKDIR /root/
+WORKDIR /app
+
+# Create certs directory
+RUN mkdir -p /app/certs
 
 # Copy the binary from builder
 COPY --from=builder /app/services/client-container/client-container .
 
+# Copy startup script
+COPY services/client-container/scripts/start-client-container.sh /app/start-client-container.sh
+RUN chmod +x /app/start-client-container.sh
+
 # Create directories for certificates and data
-RUN mkdir -p /certs /data
+RUN mkdir -p /data
 
 # Expose ports (REST and gRPC and PostgreSQL)
-EXPOSE 8006 9006
+EXPOSE 5432 8006 9006
 
-# Set entrypoint
-ENTRYPOINT ["docker-entrypoint.sh postgres","sleep 5","./client-container"]
-
+# Use the startup script as entrypoint
+ENTRYPOINT ["/app/start-client-container.sh"]

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"path/filepath"
 
 	"github.com/docker/docker/api/types/container"
@@ -49,9 +50,13 @@ func (o *ContainerOrchestrator) ConfigureContainerEnvironment(orgID int, contain
 		fmt.Sprintf("CONTAINER_CERT_SERIAL=%s", certSerial),
 		fmt.Sprintf("CONTAINER_MGMT_SERVICE_URL=%s", o.config.ContainerMgmtServiceURL),
 		fmt.Sprintf("NOTIFICATION_SERVICE_GRPC=%s", o.config.NotificationServiceGRPC),
-		fmt.Sprintf("CONTAINER_CERT_PATH=/certs/container.crt"),
-		fmt.Sprintf("CONTAINER_KEY_PATH=/certs/container.key"),
-		fmt.Sprintf("AGENT_CA_CERT_PATH=/certs/agent-ca.crt"),
+		fmt.Sprintf("CONTAINER_CERT_PATH=%s", "/certs/container.crt"),
+		fmt.Sprintf("CONTAINER_KEY_PATH=%s", "/certs/container.key"),
+		fmt.Sprintf("AGENT_CA_CERT_PATH=%s", "/certs/agent-ca.crt"),
+		// PostgreSQL environment variables for the postgres base image
+		fmt.Sprintf("POSTGRES_USER=%s", o.config.ClientContainerDBUser),
+		fmt.Sprintf("POSTGRES_PASSWORD=%s", o.config.ClientContainerDBPassword),
+		fmt.Sprintf("POSTGRES_DB=%s", o.config.ClientContainerDBName),
 	}
 
 	return env
@@ -77,11 +82,11 @@ func (o *ContainerOrchestrator) ConfigureContainerVolumes(containerID string) []
 }
 
 // ConfigureContainerNetwork generates network configuration
-func (o *ContainerOrchestrator) ConfigureContainerNetwork() *network.NetworkingConfig {
+func (o *ContainerOrchestrator) ConfigureContainerNetwork(networkName string) *network.NetworkingConfig {
 	netConfig := &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
-			o.config.DockerNetwork: {
-				NetworkID: o.config.DockerNetwork,
+			networkName: {
+				//NetworkID: o.config.DockerNetwork,
 			},
 		},
 	}
@@ -90,7 +95,7 @@ func (o *ContainerOrchestrator) ConfigureContainerNetwork() *network.NetworkingC
 }
 
 // GenerateContainerConfig generates complete Docker container configuration
-func (o *ContainerOrchestrator) GenerateContainerConfig(orgID int, containerID string, containerData *models.ClientContainer, certSerial string) (container.Config, container.HostConfig, error) {
+func (o *ContainerOrchestrator) GenerateContainerConfig(orgID int, containerID string, containerData *models.ClientContainer, certSerial string, networkName string) (container.Config, container.HostConfig, error) {
 	_ = o.GenerateContainerName(containerID) // Container name is set in CreateContainer
 
 	// Container configuration
@@ -100,9 +105,10 @@ func (o *ContainerOrchestrator) GenerateContainerConfig(orgID int, containerID s
 		Labels: map[string]string{
 			"org.itaas.container-id":    containerID,
 			"org.itaas.organization-id": fmt.Sprintf("%d", orgID),
-			"org.itaas.service":         "client-container",
+			"org.itaas.service":         "cc",
 		},
 		ExposedPorts: nat.PortSet{
+			nat.Port("5432/tcp"): {},
 			nat.Port(fmt.Sprintf("%s/tcp", o.config.ClientContainerPort)):     {},
 			nat.Port(fmt.Sprintf("%s/tcp", o.config.ClientContainerGRPCPort)): {},
 		},
@@ -111,22 +117,28 @@ func (o *ContainerOrchestrator) GenerateContainerConfig(orgID int, containerID s
 	// Host configuration
 	hostConfig := container.HostConfig{
 		Mounts:      o.ConfigureContainerVolumes(containerID),
-		NetworkMode: container.NetworkMode(o.config.DockerNetwork),
+		NetworkMode: container.NetworkMode(networkName),
 		RestartPolicy: container.RestartPolicy{
 			Name:              "unless-stopped",
 			MaximumRetryCount: 0,
 		},
 		PortBindings: nat.PortMap{
+			nat.Port("5432/tcp"): []nat.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: "", // Let Docker assign a random port to avoid conflicts
+				},
+			},
 			nat.Port(fmt.Sprintf("%s/tcp", o.config.ClientContainerPort)): []nat.PortBinding{
 				{
 					HostIP:   "0.0.0.0",
-					HostPort: o.config.ClientContainerPort,
+					HostPort: "", //o.config.ClientContainerPort,
 				},
 			},
 			nat.Port(fmt.Sprintf("%s/tcp", o.config.ClientContainerGRPCPort)): []nat.PortBinding{
 				{
 					HostIP:   "0.0.0.0",
-					HostPort: o.config.ClientContainerGRPCPort,
+					HostPort: "", //o.config.ClientContainerGRPCPort,
 				},
 			},
 		},
@@ -135,28 +147,62 @@ func (o *ContainerOrchestrator) GenerateContainerConfig(orgID int, containerID s
 	return containerConfig, hostConfig, nil
 }
 
+// GenerateNetworkName generates a unique network name for a container
+func (o *ContainerOrchestrator) GenerateNetworkName(containerID string) string {
+	return fmt.Sprintf("cc-%s-network", containerID)
+}
+
 // CreateClientContainer creates and starts a client-container Docker container
-func (o *ContainerOrchestrator) CreateClientContainer(ctx context.Context, orgID int, containerID string, containerData *models.ClientContainer, certSerial string) (string, error) {
-	// Generate container configuration
-	containerConfig, hostConfig, err := o.GenerateContainerConfig(orgID, containerID, containerData, certSerial)
+func (o *ContainerOrchestrator) CreateClientContainer(ctx context.Context, orgID int, containerID string, containerData *models.ClientContainer, certSerial string) (string, string, error) {
+	// Generate network name
+	networkName := o.GenerateNetworkName(containerID)
+
+	// Check if network already exists
+	networkExists, err := o.dockerClient.NetworkExists(ctx, networkName)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate container config: %v", err)
+		return "", "", fmt.Errorf("failed to check network existence: %v", err)
+	}
+
+	// Create network if it doesn't exist
+	if !networkExists {
+		networkLabels := map[string]string{
+			"org.itaas.container-id":    containerID,
+			"org.itaas.organization-id": fmt.Sprintf("%d", orgID),
+			"org.itaas.service":         "cc-network",
+		}
+
+		_, err := o.dockerClient.CreateNetwork(ctx, networkName, networkLabels)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to create network: %v", err)
+		}
+	}
+
+	// Generate container configuration
+	containerConfig, hostConfig, err := o.GenerateContainerConfig(orgID, containerID, containerData, certSerial, networkName)
+	if err != nil {
+		// Cleanup network on error
+		o.dockerClient.RemoveNetwork(ctx, networkName)
+		return "", "", fmt.Errorf("failed to generate container config: %v", err)
 	}
 
 	containerName := o.GenerateContainerName(containerID)
+	netConfig := o.ConfigureContainerNetwork(networkName)
 
 	// Create container
-	dockerContainerID, err := o.dockerClient.CreateContainer(ctx, containerConfig, hostConfig, containerName)
+	dockerContainerID, err := o.dockerClient.CreateContainer(ctx, containerConfig, hostConfig, netConfig, containerName)
 	if err != nil {
-		return "", fmt.Errorf("failed to create Docker container: %v", err)
+		o.dockerClient.RemoveNetwork(ctx, networkName)
+		return "", "", fmt.Errorf("failed to create Docker container: %v", err)
 	}
-
+	log.Printf("Created container %s with network %s", dockerContainerID, networkName)
 	// Start container
 	if err := o.dockerClient.StartContainer(ctx, dockerContainerID); err != nil {
 		// If start fails, try to remove the container
 		o.dockerClient.RemoveContainer(ctx, dockerContainerID, true)
-		return "", fmt.Errorf("failed to start Docker container: %v", err)
+		o.dockerClient.RemoveNetwork(ctx, networkName)
+		return "", "", fmt.Errorf("failed to start Docker container: %v", err)
 	}
+	log.Printf("Started container %s with network %s", dockerContainerID, networkName)
 
-	return dockerContainerID, nil
+	return dockerContainerID, networkName, nil
 }

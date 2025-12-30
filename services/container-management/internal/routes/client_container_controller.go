@@ -33,7 +33,7 @@ func (c *ClientContainerController) RegisterClientContainer(w http.ResponseWrite
 		EndpointURL string  `json:"endpoint_url"`
 		AdminEmail  string  `json:"admin_email"`
 		AdminPhone  *string `json:"admin_phone,omitempty"`
-		CSRPEM      string  `json:"csr_pem"`
+		// CSRPEM      string  `json:"csr_pem"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -48,7 +48,7 @@ func (c *ClientContainerController) RegisterClientContainer(w http.ResponseWrite
 		req.EndpointURL,
 		req.AdminEmail,
 		req.AdminPhone,
-		req.CSRPEM,
+		//req.CSRPEM,
 	)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())

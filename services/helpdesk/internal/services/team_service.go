@@ -17,7 +17,7 @@ func NewTeamService(cfg *config.Config, db *gorm.DB) *TeamService {
 	return &TeamService{
 		cfg:        cfg,
 		db:         db,
-		authClient: newAuthClient(cfg.AuthServiceGRPC),
+		authClient: newAuthClient(cfg),
 	}
 }
 

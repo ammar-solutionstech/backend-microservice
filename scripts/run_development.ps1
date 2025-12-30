@@ -29,24 +29,52 @@ Start-Sleep -Seconds 5
 docker compose -f docker-compose.yml up -d --build 'notification-service'
 Start-Sleep -Seconds 5
 
+# Build client-container image
+docker compose -f docker-compose.yml build --no-cache 'client-container'
+# Verify image was created
+#docker images | Select-String "client-container"
+
+# Run Auth service
+# go run ./services/auth/cmd/server
+Start-Process go -ArgumentList "run ./services/auth/cmd/server" -WorkingDirectory "D:\backend_v1"
+Start-Sleep -Seconds 5
+# Check Auth service health
+#curl http://localhost:8001/health
+
+# Run helpdesk service
+# go run ./services/helpdesk/cmd/server
+Start-Process go -ArgumentList "run ./services/helpdesk/cmd/server" -WorkingDirectory "D:\backend_v1"
+Start-Sleep -Seconds 5
+# Check helpdesk service health
+#curl http://localhost:8002/health
+
+# Run notification service
+# go run ./services/notification/cmd/server
+Start-Process go -ArgumentList "run ./services/notification/cmd/server" -WorkingDirectory "D:\backend_v1"
+Start-Sleep -Seconds 5
+# Check notification service health
+#curl http://localhost:8003/health
+
 # Run certificate service
 # go run ./services/certificate/cmd/server
 Start-Process go -ArgumentList "run ./services/certificate/cmd/server" -WorkingDirectory "D:\backend_v1"
 Start-Sleep -Seconds 5
 # Check certificate service health
-curl http://localhost:8004/health
-
-# Build client-container image
-docker compose -f docker-compose.yml build 'client-container'
-# Verify image was created
-docker images | Select-String "client-container"
+#curl http://localhost:8004/health
 
 # Run container-management service
 # go run ./services/container-management/cmd/server
 Start-Process go -ArgumentList "run ./services/container-management/cmd/server" -WorkingDirectory "D:\backend_v1"
 Start-Sleep -Seconds 5
 # Check container-management service health
-curl http://localhost:8005/health
+#curl http://localhost:8005/health
+
+# Run gateway service
+# go run ./services/gateway/cmd/server
+Start-Process go -ArgumentList "run ./services/gateway/cmd/server" -WorkingDirectory "D:\backend_v1"
+Start-Sleep -Seconds 5
+# Check gateway service health
+#curl http://localhost:8080/health
 
 # Docker Daemon Accessible to Container-Management
 # Ensure Docker Desktop is running
@@ -58,6 +86,6 @@ $env:DOCKER_HOST="npipe:////./pipe/docker_engine"
 # Create certs directory
 # New-Item -ItemType Directory -Force -Path .\certs
 # Verify certificates
-openssl x509 -in ./certs/ca.crt -text -noout
-openssl x509 -in ./certs/server.crt -text -noout
-openssl x509 -in ./certs/client.crt -text -noout
+# openssl x509 -in ./certs/ca.crt -text -noout
+# openssl x509 -in ./certs/server.crt -text -noout
+# openssl x509 -in ./certs/client.crt -text -noout

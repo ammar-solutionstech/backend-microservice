@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,11 +11,14 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"backend/services/certificate/internal/config"
 	"backend/services/certificate/internal/middleware"
 	"backend/services/certificate/internal/routes"
 	"backend/services/certificate/internal/services"
+	"backend/services/certificate/internal/utils"
 )
 
 func main() {
@@ -36,6 +40,9 @@ func main() {
 	caService := services.NewCAService(cfg, cfg.DB, stepCAClient)
 	raService := services.NewRAService(cfg, cfg.DB, caService)
 	vaService := services.NewVAService(cfg, cfg.DB, stepCAClient)
+
+	// Start gRPC server
+	go startGRPCServer(cfg, caService, raService, vaService)
 
 	// Initialize controllers
 	raController := routes.NewRAController(raService)
@@ -87,7 +94,16 @@ func main() {
 
 	go func() {
 		log.Printf("Certificate service listening on :%s", cfg.Port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		var err error
+		if cfg.MTLSTLSConfig != nil {
+			// Start HTTPS server with mTLS
+			err = srv.ListenAndServeTLS(cfg.MTLSServerCert, cfg.MTLSServerKey)
+		} else {
+			// Fallback to HTTP (not recommended for production)
+			log.Println("Warning: Starting without TLS. mTLS is not configured.")
+			err = srv.ListenAndServe()
+		}
+		if err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server error: %v", err)
 		}
 	}()
@@ -104,4 +120,42 @@ func main() {
 		log.Fatalf("shutdown error: %v", err)
 	}
 	log.Println("certificate service stopped cleanly")
+}
+
+func startGRPCServer(cfg *config.Config, caService *services.CAService, raService *services.RAService, vaService *services.VAService) {
+	lis, err := net.Listen("tcp", ":"+cfg.GRPCPort)
+	if err != nil {
+		log.Fatalf("failed to listen on gRPC port: %v", err)
+	}
+
+	var opts []grpc.ServerOption
+
+	// Use mTLS if certificates are configured
+	if cfg.GRPCMTLSCACert != "" && cfg.GRPCMTLSServerCert != "" && cfg.GRPCMTLSServerKey != "" {
+		creds, err := utils.LoadGRPCServerCredentials(
+			cfg.GRPCMTLSServerCert,
+			cfg.GRPCMTLSServerKey,
+			cfg.GRPCMTLSCACert,
+		)
+		if err != nil {
+			log.Printf("Warning: failed to load gRPC server TLS credentials: %v", err)
+			log.Println("Falling back to insecure connection")
+			opts = append(opts, grpc.Creds(insecure.NewCredentials()))
+		} else {
+			opts = append(opts, grpc.Creds(creds))
+			log.Println("gRPC server configured with mTLS")
+		}
+	} else {
+		log.Println("Warning: gRPC mTLS not configured, using insecure connection")
+		opts = append(opts, grpc.Creds(insecure.NewCredentials()))
+	}
+
+	s := grpc.NewServer(opts...)
+	// TODO: Register gRPC services when proto files are available
+	// certificatepb.RegisterCertificateServiceServer(s, services.NewCertificateGRPCServer(caService, raService, vaService))
+
+	log.Printf("gRPC server listening on :%s", cfg.GRPCPort)
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve gRPC: %v", err)
+	}
 }

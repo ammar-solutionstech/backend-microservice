@@ -20,7 +20,9 @@ RUN go build -o /app/gateway ./cmd/server
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
-WORKDIR /root/
+WORKDIR /app
+# Create certs directory
+RUN mkdir -p /app/certs
 COPY --from=builder /app/gateway .
 CMD ["./gateway"]
 

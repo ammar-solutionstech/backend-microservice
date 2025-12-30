@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -32,15 +33,15 @@ type CSRResponse struct {
 
 // CertificateResponse represents a certificate from the certificate service
 type CertificateResponse struct {
-	ID             int     `json:"id"`
-	SerialNumber   string  `json:"serial_number"`
-	CSRID          *int    `json:"csr_id,omitempty"`
-	CertificatePEM string  `json:"certificate_pem"`
-	IssuedAt       string  `json:"issued_at"`
-	ExpiresAt      string  `json:"expires_at"`
-	Status         string  `json:"status"`
-	CreatedAt      string  `json:"created_at"`
-	UpdatedAt      string  `json:"updated_at"`
+	ID             int    `json:"id"`
+	SerialNumber   string `json:"serial_number"`
+	CSRID          *int   `json:"csr_id,omitempty"`
+	CertificatePEM string `json:"certificate_pem"`
+	IssuedAt       string `json:"issued_at"`
+	ExpiresAt      string `json:"expires_at"`
+	Status         string `json:"status"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
 }
 
 // NewCertificateClient creates a new certificate service client with mTLS
@@ -56,8 +57,16 @@ func NewCertificateClient(cfg *config.Config) (*CertificateClient, error) {
 			Transport: transport,
 			Timeout:   30 * time.Second,
 		}
+		log.Println("Warning: Starting Certificate Client with TLS. mTLS is configured.")
+		log.Printf("Certificate Service URL: %s", cfg.CertificateServiceURL)
+		log.Printf("Certificate Service TLS Config: %+v", cfg.CertificateServiceTLSConfig)
+		log.Printf("Certificate Service CA: %s", cfg.CertificateServiceCA)
+		log.Printf("Certificate Service Cert: %s", cfg.CertificateServiceCert)
+		log.Printf("Certificate Service Key: %s", cfg.CertificateServiceKey)
+		log.Printf("Certificate Service Key Pass: %s", cfg.CertificateServiceKeyPass)
 	} else {
 		// Fallback to regular HTTP client (not recommended for production)
+		log.Println("Warning: Starting Certificate Client without TLS. mTLS is not configured.")
 		httpClient = &http.Client{
 			Timeout: 30 * time.Second,
 		}
@@ -74,7 +83,7 @@ func (c *CertificateClient) SubmitCSR(csrPEM string, requesterEmail string) (*CS
 	url := fmt.Sprintf("%s/api/csr", c.baseURL)
 
 	reqBody := map[string]interface{}{
-		"csr_pem":        csrPEM,
+		"csr_pem":         csrPEM,
 		"requester_email": requesterEmail,
 	}
 
@@ -332,12 +341,12 @@ func (c *CertificateClient) RequestAgentCertificate(containerID, deviceSerial, c
 	url := fmt.Sprintf("%s/api/certificates/request", c.baseURL)
 
 	reqBody := map[string]interface{}{
-		"csr_pem":        csrPEM,
+		"csr_pem":         csrPEM,
 		"requester_email": fmt.Sprintf("container:%s:device:%s", containerID, deviceSerial),
-		"container_id":   containerInfo["container_id"],
-		"org_id":         containerInfo["org_id"],
-		"org_domain":     containerInfo["org_domain"],
-		"device_serial":  deviceSerial,
+		"container_id":    containerInfo["container_id"],
+		"org_id":          containerInfo["org_id"],
+		"org_domain":      containerInfo["org_domain"],
+		"device_serial":   deviceSerial,
 	}
 
 	jsonData, err := json.Marshal(reqBody)
@@ -374,4 +383,3 @@ func (c *CertificateClient) RequestAgentCertificate(containerID, deviceSerial, c
 
 	return &certResp, nil
 }
-

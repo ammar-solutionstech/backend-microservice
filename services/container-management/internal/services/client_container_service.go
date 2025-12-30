@@ -3,10 +3,14 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"time"
 
 	"backend/services/container-management/internal/config"
 	"backend/services/container-management/internal/models"
+	"backend/services/container-management/internal/utils"
 
 	"gorm.io/gorm"
 )
@@ -34,9 +38,9 @@ func NewClientContainerService(cfg *config.Config, db *gorm.DB, certClient *Cert
 }
 
 // RegisterClientContainer registers a new client container for an organization
-func (s *ClientContainerService) RegisterClientContainer(orgID int, containerID, name, endpointURL, adminEmail string, adminPhone *string, csrPEM string) (*models.ClientContainer, error) {
+func (s *ClientContainerService) RegisterClientContainer(orgID int, containerID, name, endpointURL, adminEmail string, adminPhone *string) (*models.ClientContainer, error) {
 	// Verify organization exists
-	_, err := s.organizationSvc.GetOrganization(orgID)
+	org, err := s.organizationSvc.GetOrganization(orgID)
 	if err != nil {
 		return nil, fmt.Errorf("organization not found: %v", err)
 	}
@@ -47,9 +51,19 @@ func (s *ClientContainerService) RegisterClientContainer(orgID int, containerID,
 		return nil, fmt.Errorf("client container with ID '%s' already exists", containerID)
 	}
 
+	// Generate private key and CSR automatically
+	privateKeyPEM, csrPEM, err := utils.GenerateKeyAndCSR(
+		containerID,
+		org.Name, // Use organization name
+		"SA",     // Default country, or get from config
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate key and CSR: %v", err)
+	}
+
 	// Request certificate from certificate service via container-management
 	// Note: This goes through the certificate service, not directly
-	certResp, err := s.certClient.SubmitCSR(csrPEM, fmt.Sprintf("container:%s", containerID))
+	certResp, err := s.certClient.SubmitCSR(string(csrPEM), fmt.Sprintf("container:%s", containerID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to request container certificate: %v", err)
 	}
@@ -64,6 +78,43 @@ func (s *ClientContainerService) RegisterClientContainer(orgID int, containerID,
 	cert, err := s.certClient.IssueCertificate(certResp.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to issue container certificate: %v", err)
+	}
+
+	// Create certificate directory for this container
+	certDir := filepath.Join(s.config.CertificatesPath, containerID)
+	if err := os.MkdirAll(certDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create certificate directory: %v", err)
+	}
+
+	// Write private key to file
+	privateKeyPath := filepath.Join(certDir, "container.key")
+	if err := os.WriteFile(privateKeyPath, privateKeyPEM, 0600); err != nil {
+		return nil, fmt.Errorf("failed to write private key: %v", err)
+	}
+
+	// Write certificate to file
+	certPath := filepath.Join(certDir, "container.crt")
+	if err := os.WriteFile(certPath, []byte(cert.CertificatePEM), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write certificate: %v", err)
+	}
+
+	// Copy or create agent CA certificate
+	// Option 1: Copy from a shared CA cert location (if you have one)
+	agentCACertPath := filepath.Join(certDir, "agent-ca.crt")
+	sharedAgentCA := filepath.Join(s.config.CertificatesPath, "agent-ca.crt")
+	if _, err := os.Stat(sharedAgentCA); err == nil {
+		// Copy shared agent CA cert
+		agentCACert, err := os.ReadFile(sharedAgentCA)
+		if err == nil {
+			if err := os.WriteFile(agentCACertPath, agentCACert, 0644); err != nil {
+				log.Printf("Warning: failed to copy agent CA cert: %v", err)
+			}
+		}
+	} else {
+		// Option 2: Use the same CA cert as container management (if available)
+		// Or create a placeholder/empty file (not recommended for production)
+		// For now, we'll skip creating it and let the warning handle it
+		log.Printf("Warning: Agent CA cert not found at %s. Agent certificate validation will be disabled.", sharedAgentCA)
 	}
 
 	// Create client container record
@@ -81,17 +132,23 @@ func (s *ClientContainerService) RegisterClientContainer(orgID int, containerID,
 	}
 
 	if err := s.db.Create(clientContainer).Error; err != nil {
+		// Cleanup certificate files on error
+		os.RemoveAll(certDir)
 		return nil, fmt.Errorf("failed to create client container: %v", err)
 	}
 
 	// Create Docker container
 	ctx := context.Background()
-	dockerContainerID, err := s.orchestrator.CreateClientContainer(ctx, orgID, containerID, clientContainer, cert.SerialNumber)
+	dockerContainerID, networkName, err := s.orchestrator.CreateClientContainer(ctx, orgID, containerID, clientContainer, cert.SerialNumber)
 	if err != nil {
-		// Rollback database record
+		// Rollback database record and cleanup files
 		s.db.Delete(clientContainer)
+		os.RemoveAll(certDir)
 		return nil, fmt.Errorf("failed to create Docker container: %v", err)
 	}
+
+	// Store networkName in the database if needed, or just log it
+	log.Printf("Created container %s with network %s", dockerContainerID, networkName)
 
 	// Get container name
 	containerName := s.orchestrator.GenerateContainerName(containerID)

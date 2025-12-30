@@ -1,0 +1,194 @@
+syntax = "proto3";
+
+package agent;
+
+option go_package = "backend/services/client-container/proto";
+
+// Agent Service - gRPC service for agent communication
+service AgentService {
+  // Device registration
+  rpc RegisterDevice(RegisterDeviceRequest) returns (RegisterDeviceResponse);
+  rpc VerifyDevice(VerifyDeviceRequest) returns (VerifyDeviceResponse);
+  
+  // Health reporting
+  rpc ReportHealth(HealthReport) returns (HealthResponse);
+  
+  // Configuration management
+  rpc GetConfiguration(ConfigRequest) returns (ConfigResponse);
+  rpc UpdateConfiguration(UpdateConfigRequest) returns (ConfigResponse);
+  
+  // Plugin management
+  rpc ListPlugins(PluginListRequest) returns (PluginListResponse);
+  rpc InstallPlugin(InstallPluginRequest) returns (InstallPluginResponse);
+  rpc UninstallPlugin(UninstallPluginRequest) returns (UninstallPluginResponse);
+  rpc ActivatePlugin(ActivatePluginRequest) returns (ActivatePluginResponse);
+  rpc DeactivatePlugin(DeactivatePluginRequest) returns (DeactivatePluginResponse);
+  rpc GetPluginStatus(PluginStatusRequest) returns (PluginStatusResponse);
+}
+
+// Device Registration Messages
+message RegisterDeviceRequest {
+  string device_id = 1;
+  string hostname = 2;
+  string os_type = 3;
+  string os_version = 4;
+  string architecture = 5;
+  string ip_address = 6;
+  string device_serial = 7;
+  string agent_version = 8;
+  string csr_pem = 9;
+  map<string, string> hardware_info = 10;
+}
+
+message RegisterDeviceResponse {
+  bool success = 1;
+  int32 device_id = 2;
+  string verification_code = 3;
+  string message = 4;
+}
+
+message VerifyDeviceRequest {
+  int32 device_id = 1;
+  string verification_code = 2;
+  string csr_pem = 3;
+}
+
+message VerifyDeviceResponse {
+  bool success = 1;
+  string certificate_pem = 2;
+  string certificate_serial = 3;
+  string container_id = 4;
+  string message = 5;
+}
+
+// Health Reporting Messages
+message HealthReport {
+  int32 device_id = 1;
+  string agent_version = 2;
+  AgentStatus status = 3;
+  repeated PluginHealth plugin_health = 4;
+  SystemMetrics metrics = 5;
+  int64 timestamp = 6;
+}
+
+message AgentStatus {
+  string state = 1; // active, inactive, error
+  string last_error = 2;
+  int64 uptime_seconds = 3;
+}
+
+message PluginHealth {
+  string name = 1;
+  string version = 2;
+  string state = 3; // active, inactive, error
+  bool healthy = 4;
+  string last_error = 5;
+}
+
+message SystemMetrics {
+  double cpu_usage_percent = 1;
+  int64 memory_used_bytes = 2;
+  int64 memory_total_bytes = 3;
+  int64 disk_used_bytes = 4;
+  int64 disk_total_bytes = 5;
+}
+
+message HealthResponse {
+  bool success = 1;
+  string message = 2;
+  int64 next_report_interval_seconds = 3;
+}
+
+// Configuration Messages
+message ConfigRequest {
+  int32 device_id = 1;
+  repeated string keys = 2; // Empty means all config
+}
+
+message ConfigResponse {
+  bool success = 1;
+  map<string, string> configuration = 2;
+  int64 version = 3;
+  string message = 4;
+}
+
+message UpdateConfigRequest {
+  int32 device_id = 1;
+  map<string, string> configuration = 2;
+}
+
+// Plugin Management Messages
+message PluginListRequest {
+  int32 device_id = 1;
+  bool include_inactive = 2;
+}
+
+message PluginListResponse {
+  bool success = 1;
+  repeated PluginInfo plugins = 2;
+  string message = 3;
+}
+
+message PluginInfo {
+  string name = 1;
+  string version = 2;
+  string state = 3; // installed, active, inactive, error
+  string description = 4;
+  map<string, string> metadata = 5;
+}
+
+message InstallPluginRequest {
+  int32 device_id = 1;
+  string plugin_name = 2;
+  string version = 3; // Empty means latest
+}
+
+message InstallPluginResponse {
+  bool success = 1;
+  string plugin_name = 2;
+  string version = 3;
+  string message = 4;
+}
+
+message UninstallPluginRequest {
+  int32 device_id = 1;
+  string plugin_name = 2;
+}
+
+message UninstallPluginResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ActivatePluginRequest {
+  int32 device_id = 1;
+  string plugin_name = 2;
+  map<string, string> config = 3;
+}
+
+message ActivatePluginResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DeactivatePluginRequest {
+  int32 device_id = 1;
+  string plugin_name = 2;
+}
+
+message DeactivatePluginResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message PluginStatusRequest {
+  int32 device_id = 1;
+  string plugin_name = 2;
+}
+
+message PluginStatusResponse {
+  bool success = 1;
+  PluginInfo plugin = 2;
+  string message = 3;
+}
+

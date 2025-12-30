@@ -29,11 +29,11 @@ type Config struct {
 	GRPCPort string
 
 	// Container Management Service Connection (for certificate operations)
-	ContainerMgmtServiceURL      string
-	ContainerMgmtServiceCA       string
-	ContainerMgmtServiceCert     string
+	ContainerMgmtServiceURL       string
+	ContainerMgmtServiceCA        string
+	ContainerMgmtServiceCert      string
 	ContainerMgmtServiceKey       string
-	ContainerMgmtServiceKeyPass  string
+	ContainerMgmtServiceKeyPass   string
 	ContainerMgmtServiceTLSConfig *tls.Config
 
 	// Container's own certificate (obtained from container-management)
@@ -48,40 +48,78 @@ type Config struct {
 	// Notification Service Connection (for sending verification codes)
 	NotificationServiceGRPC string
 
+	// gRPC mTLS Server Configuration
+	GRPCMTLSCACert        string
+	GRPCMTLSServerCert    string
+	GRPCMTLSServerKey     string
+	GRPCMTLSServerKeyPass string
+
+	// gRPC mTLS Client Configuration (for Notification service)
+	NotificationServiceGRPCMTLSCA      string
+	NotificationServiceGRPCMTLSClientCert string
+	NotificationServiceGRPCMTLSClientKey  string
+
 	// Verification code settings
 	VerificationCodeLength int
-	VerificationCodeExpiry  time.Duration
+	VerificationCodeExpiry time.Duration
 
 	// Telemetry retention (days)
 	TelemetryRetentionDays int
 
 	// Plugin repository settings
 	PluginRepositoryURL string
+
+	// File storage paths
+	UpdateStoragePath string
+	PluginStoragePath string
+
+	// Update public key for signature verification
+	UpdatePublicKey string
 }
 
 func Load() *Config {
+	// Try service-specific .env first
 	_ = godotenv.Load(".env")
+	// Fall back to root .env if exists
+	if _, err := os.Stat("../../.env"); err == nil {
+		_ = godotenv.Overload("../../.env")
+	}
 
 	cfg := &Config{
-		DBHost:                    getEnv("CLIENT_CONTAINER_DB_HOST", "localhost"),
-		DBPort:                    getEnv("CLIENT_CONTAINER_DB_PORT", "5432"),
-		DBName:                    getEnv("CLIENT_CONTAINER_DB_NAME", "client_container_db"),
-		DBUser:                    getEnv("CLIENT_CONTAINER_DB_USER", "postgres"),
-		DBPassword:                getEnv("CLIENT_CONTAINER_DB_PASSWORD", "postgres"),
-		Port:                      getEnv("CLIENT_CONTAINER_PORT", "8006"),
-		GRPCPort:                  getEnv("CLIENT_CONTAINER_GRPC_PORT", "9006"),
-		ContainerMgmtServiceURL:   getEnv("CONTAINER_MGMT_SERVICE_URL", "https://container-management-service:8005"),
-		ContainerMgmtServiceCA:    getEnv("CONTAINER_MGMT_SERVICE_CA", ""),
-		ContainerMgmtServiceCert:   getEnv("CONTAINER_MGMT_SERVICE_CERT", ""),
-		ContainerMgmtServiceKey:    getEnv("CONTAINER_MGMT_SERVICE_KEY", ""),
+		DBHost:                      getEnv("CLIENT_CONTAINER_DB_HOST", "localhost"),
+		DBPort:                      getEnv("CLIENT_CONTAINER_DB_PORT", "5432"),
+		DBName:                      getEnv("CLIENT_CONTAINER_DB_NAME", "client_container_db"),
+		DBUser:                      getEnv("CLIENT_CONTAINER_DB_USER", "postgres"),
+		DBPassword:                  getEnv("CLIENT_CONTAINER_DB_PASSWORD", "postgres"),
+		Port:                        getEnv("CLIENT_CONTAINER_PORT", "8006"),
+		GRPCPort:                    getEnv("CLIENT_CONTAINER_GRPC_PORT", "9006"),
+		ContainerMgmtServiceURL:     getEnv("CONTAINER_MGMT_SERVICE_URL", "https://container-management-service:8005"),
+		ContainerMgmtServiceCA:      getEnv("CONTAINER_MGMT_SERVICE_CA", "./certs/container-management-ca.crt"),
+		ContainerMgmtServiceCert:    getEnv("CONTAINER_MGMT_SERVICE_CERT", "./certs/client-container-client.crt"),
+		ContainerMgmtServiceKey:     getEnv("CONTAINER_MGMT_SERVICE_KEY", "./certs/client-container-client.key"),
 		ContainerMgmtServiceKeyPass: getEnv("CONTAINER_MGMT_SERVICE_KEY_PASSWORD", ""),
-		ContainerCertPath:         getEnv("CONTAINER_CERT_PATH", ""),
-		ContainerKeyPath:          getEnv("CONTAINER_KEY_PATH", ""),
-		AgentCACertPath:          getEnv("AGENT_CA_CERT_PATH", ""),
-		NotificationServiceGRPC:   getEnv("NOTIFICATION_SERVICE_GRPC", "notification-service:9003"),
-		VerificationCodeLength:    getIntEnv("VERIFICATION_CODE_LENGTH", 6),
-		TelemetryRetentionDays:    getIntEnv("TELEMETRY_RETENTION_DAYS", 90),
-		PluginRepositoryURL:      getEnv("PLUGIN_REPOSITORY_URL", ""),
+		ContainerCertPath:           getEnv("CONTAINER_CERT_PATH", "./certs/container.crt"),
+		ContainerKeyPath:            getEnv("CONTAINER_KEY_PATH", "./certs/container.key"),
+		AgentCACertPath:             getEnv("AGENT_CA_CERT_PATH", "./certs/agent-ca.crt"),
+		NotificationServiceGRPC:     getEnv("NOTIFICATION_SERVICE_GRPC", "notification-service:9003"),
+		
+		// gRPC mTLS Server Configuration
+		GRPCMTLSCACert:        getEnv("GRPC_MTLS_CA_CERT", "./certs/client-container-ca.crt"),
+		GRPCMTLSServerCert:    getEnv("GRPC_MTLS_SERVER_CERT", "./certs/client-container-server.crt"),
+		GRPCMTLSServerKey:     getEnv("GRPC_MTLS_SERVER_KEY", "./certs/client-container-server.key"),
+		GRPCMTLSServerKeyPass: getEnv("GRPC_MTLS_SERVER_KEY_PASSWORD", ""),
+		
+		// Notification Service gRPC mTLS Client Configuration
+		NotificationServiceGRPCMTLSCA:           getEnv("NOTIFICATION_SERVICE_GRPC_MTLS_CA", "./certs/notification-ca.crt"),
+		NotificationServiceGRPCMTLSClientCert:   getEnv("NOTIFICATION_SERVICE_GRPC_MTLS_CLIENT_CERT", "./certs/client-container-client.crt"),
+		NotificationServiceGRPCMTLSClientKey:    getEnv("NOTIFICATION_SERVICE_GRPC_MTLS_CLIENT_KEY", "./certs/client-container-client.key"),
+		
+		VerificationCodeLength:      getIntEnv("VERIFICATION_CODE_LENGTH", 6),
+		TelemetryRetentionDays:      getIntEnv("TELEMETRY_RETENTION_DAYS", 90),
+		PluginRepositoryURL:         getEnv("PLUGIN_REPOSITORY_URL", ""),
+		UpdateStoragePath:            getEnv("UPDATE_STORAGE_PATH", "/data/updates"),
+		PluginStoragePath:            getEnv("PLUGIN_STORAGE_PATH", "/data/plugins"),
+		UpdatePublicKey:              getEnv("UPDATE_PUBLIC_KEY", ""),
 	}
 
 	// Parse verification code expiry
@@ -119,6 +157,7 @@ func initDB(cfg *Config) *gorm.DB {
 }
 
 func initContainerMgmtTLS(cfg *Config) *tls.Config {
+	log.Printf("Container Management Service CA: %s, Container Management Service Cert: %s, Container Management Service Key: %s", cfg.ContainerMgmtServiceCA, cfg.ContainerMgmtServiceCert, cfg.ContainerMgmtServiceKey)
 	if cfg.ContainerMgmtServiceCA == "" || cfg.ContainerMgmtServiceCert == "" || cfg.ContainerMgmtServiceKey == "" {
 		log.Printf("Warning: Container management service mTLS certificates not configured.")
 		return nil
@@ -166,15 +205,17 @@ func loadAgentCACert(cfg *Config) *x509.CertPool {
 		log.Printf("Warning: Agent CA certificate not configured.")
 		return nil
 	}
-
+	log.Printf("Loading agent CA certificate from %s", cfg.AgentCACertPath)
 	caCert, err := os.ReadFile(cfg.AgentCACertPath)
 	if err != nil {
-		log.Fatalf("failed to read agent CA cert: %v", err)
+		log.Fatalf("Warning: failed to read agent CA cert: %v . Agent certificate validation will be disabled.", err)
+		return nil
 	}
 
 	caCertPool := x509.NewCertPool()
 	if !caCertPool.AppendCertsFromPEM(caCert) {
-		log.Fatalf("failed to parse agent CA cert")
+		log.Fatalf("Warning: failed to parse agent CA cert. Agent certificate validation will be disabled.")
+		return nil
 	}
 
 	return caCertPool
@@ -197,4 +238,3 @@ func getIntEnv(key string, defaultValue int) int {
 	}
 	return defaultValue
 }
-

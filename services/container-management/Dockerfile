@@ -19,15 +19,15 @@ FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates
 
-WORKDIR /root/
+WORKDIR /app
+
+# Create certs directory for mTLS certificates
+RUN mkdir -p /app/certs
 
 # Copy the binary
 COPY --from=builder /app/services/container-management/server .
 
-# Create certs directory for mTLS certificates
-RUN mkdir -p /certs
-
-EXPOSE 8005
+EXPOSE 8005 9005
 
 CMD ["./server"]
 

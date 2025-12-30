@@ -10,3 +10,5 @@ COPY services/helpdesk/migrations /migrations/helpdesk
 COPY services/notification/migrations /migrations/notification
 COPY services/certificate/migrations /migrations/certificate
 COPY services/container-management/migrations /migrations/container-management
+
+ENTRYPOINT ["docker-entrypoint.sh", "postgres"]

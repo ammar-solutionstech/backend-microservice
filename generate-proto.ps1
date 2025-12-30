@@ -18,5 +18,14 @@ protoc --go_out=. --go_opt=paths=source_relative `
     --go-grpc_out=. --go-grpc_opt=paths=source_relative `
     services/notification/proto/notification.proto
 
-Write-Host "Proto files generated successfully"
+# Generate Agent proto (for agent program)
+protoc --go_out=. --go_opt=paths=source_relative `
+    --go-grpc_out=. --go-grpc_opt=paths=source_relative `
+    agent/proto/agent.proto
 
+# Generate Client Container Agent proto (for backend service)
+protoc --go_out=. --go_opt=paths=source_relative `
+    --go-grpc_out=. --go-grpc_opt=paths=source_relative `
+    services/client-container/proto/agent.proto
+
+Write-Host "Proto files generated successfully"

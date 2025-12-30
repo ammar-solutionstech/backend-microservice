@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,11 +11,14 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"backend/services/container-management/internal/config"
 	"backend/services/container-management/internal/middleware"
 	"backend/services/container-management/internal/routes"
 	"backend/services/container-management/internal/services"
+	"backend/services/container-management/internal/utils"
 )
 
 func main() {
@@ -48,6 +52,9 @@ func main() {
 	orgService := services.NewOrganizationService(cfg, cfg.DB)
 	clientContainerService := services.NewClientContainerService(cfg, cfg.DB, certClient, orgService, orchestrator, dockerClient)
 	authService := services.NewAuthService()
+
+	// Start gRPC server
+	go startGRPCServer(cfg)
 
 	// Initialize controllers
 	certController := routes.NewCertificateController(certClient, csrValidator)
@@ -174,4 +181,42 @@ func main() {
 		log.Fatalf("shutdown error: %v", err)
 	}
 	log.Println("container management service stopped cleanly")
+}
+
+func startGRPCServer(cfg *config.Config) {
+	lis, err := net.Listen("tcp", ":9005")
+	if err != nil {
+		log.Fatalf("failed to listen on gRPC port: %v", err)
+	}
+
+	var opts []grpc.ServerOption
+
+	// Use mTLS if certificates are configured
+	if cfg.GRPCMTLSCACert != "" && cfg.GRPCMTLSServerCert != "" && cfg.GRPCMTLSServerKey != "" {
+		creds, err := utils.LoadGRPCServerCredentials(
+			cfg.GRPCMTLSServerCert,
+			cfg.GRPCMTLSServerKey,
+			cfg.GRPCMTLSCACert,
+		)
+		if err != nil {
+			log.Printf("Warning: failed to load gRPC server TLS credentials: %v", err)
+			log.Println("Falling back to insecure connection")
+			opts = append(opts, grpc.Creds(insecure.NewCredentials()))
+		} else {
+			opts = append(opts, grpc.Creds(creds))
+			log.Println("gRPC server configured with mTLS")
+		}
+	} else {
+		log.Println("Warning: gRPC mTLS not configured, using insecure connection")
+		opts = append(opts, grpc.Creds(insecure.NewCredentials()))
+	}
+
+	s := grpc.NewServer(opts...)
+	// TODO: Register gRPC services when proto files are available
+	// containerpb.RegisterContainerManagementServiceServer(s, services.NewContainerManagementGRPCServer(...))
+
+	log.Printf("gRPC server listening on :9005")
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve gRPC: %v", err)
+	}
 }

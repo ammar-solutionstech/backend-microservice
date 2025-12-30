@@ -60,12 +60,24 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: client_container_db
       POSTGRES_PORT: 5432
-    ports:
-      - "5432:5432"
-      - "8006:8006"
-      - "9006:9006"
+      CLIENT_CONTAINER_PORT: 8006
+      CLIENT_CONTAINER_GRPC_PORT: 9006
+      NOTIFICATION_SERVICE_GRPC: notification-service:9003
+      # gRPC mTLS Server Configuration
+      GRPC_MTLS_CA_CERT: /app/certs/client-container-ca.crt
+      GRPC_MTLS_SERVER_CERT: /app/certs/client-container-server.crt
+      GRPC_MTLS_SERVER_KEY: /app/certs/client-container-server.key
+      GRPC_MTLS_SERVER_KEY_PASSWORD: ${GRPC_MTLS_SERVER_KEY_PASSWORD:-}
+      # Notification Service gRPC mTLS Client Configuration
+      NOTIFICATION_SERVICE_GRPC_MTLS_CA: /app/certs/notification-ca.crt
+      NOTIFICATION_SERVICE_GRPC_MTLS_CLIENT_CERT: /app/certs/client-container-client.crt
+      NOTIFICATION_SERVICE_GRPC_MTLS_CLIENT_KEY: /app/certs/client-container-client.key
+    # ports:
+    #   - "5432:5432"
+    #   - "8006:8006"
+    #   - "9006:9006"
     volumes:
-      - ./certs:/certs:ro
+      - ./services/client-container/certs:/app/certs:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - microservices-network
@@ -115,9 +127,16 @@ services:
       RABBITMQ_URL: amqp://rabbitmq:5672
       RABBITMQ_USER: rabbitmq
       RABBITMQ_PASSWORD: rabbitmq
+      # gRPC mTLS Server Configuration
+      GRPC_MTLS_CA_CERT: /app/certs/auth-ca.crt
+      GRPC_MTLS_SERVER_CERT: /app/certs/auth-server.crt
+      GRPC_MTLS_SERVER_KEY: /app/certs/auth-server.key
+      GRPC_MTLS_SERVER_KEY_PASSWORD: ${GRPC_MTLS_SERVER_KEY_PASSWORD:-}
     ports:
       - "8001:8001"
       - "9001:9001"
+    volumes:
+      - ./services/auth/certs:/app/certs:ro
     depends_on:
       postgres-itaas:
         condition: service_healthy
@@ -144,9 +163,20 @@ services:
       RABBITMQ_URL: amqp://rabbitmq:5672
       RABBITMQ_USER: rabbitmq
       RABBITMQ_PASSWORD: rabbitmq
+      # gRPC mTLS Server Configuration
+      GRPC_MTLS_CA_CERT: /app/certs/helpdesk-ca.crt
+      GRPC_MTLS_SERVER_CERT: /app/certs/helpdesk-server.crt
+      GRPC_MTLS_SERVER_KEY: /app/certs/helpdesk-server.key
+      GRPC_MTLS_SERVER_KEY_PASSWORD: ${GRPC_MTLS_SERVER_KEY_PASSWORD:-}
+      # Auth Service gRPC mTLS Client Configuration
+      AUTH_SERVICE_GRPC_MTLS_CA: /app/certs/auth-ca.crt
+      AUTH_SERVICE_GRPC_MTLS_CLIENT_CERT: /app/certs/helpdesk-client.crt
+      AUTH_SERVICE_GRPC_MTLS_CLIENT_KEY: /app/certs/helpdesk-client.key
     ports:
       - "8002:8002"
       - "9002:9002"
+    volumes:
+      - ./services/helpdesk/certs:/app/certs:ro
     depends_on:
       postgres-itaas:
         condition: service_healthy
@@ -179,9 +209,16 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_TLS: ${SMTP_TLS:-true}
+      # gRPC mTLS Server Configuration
+      GRPC_MTLS_CA_CERT: /app/certs/notification-ca.crt
+      GRPC_MTLS_SERVER_CERT: /app/certs/notification-server.crt
+      GRPC_MTLS_SERVER_KEY: /app/certs/notification-server.key
+      GRPC_MTLS_SERVER_KEY_PASSWORD: ${GRPC_MTLS_SERVER_KEY_PASSWORD:-}
     ports:
       - "8003:8003"
       - "9003:9003"
+    volumes:
+      - ./services/notification/certs:/app/certs:ro
     depends_on:
       postgres-itaas:
         condition: service_healthy
@@ -209,9 +246,16 @@ services:
       STEP_CA_PROVISIONER: ${STEP_CA_PROVISIONER:-admin}
       STEP_CA_USE_MTLS: ${STEP_CA_USE_MTLS:-false}
       STEP_CA_MANAGE_DOCKER: ${STEP_CA_MANAGE_DOCKER:-false}
+      # gRPC mTLS Server Configuration
+      GRPC_MTLS_CA_CERT: /app/certs/certificate-ca.crt
+      GRPC_MTLS_SERVER_CERT: /app/certs/certificate-server.crt
+      GRPC_MTLS_SERVER_KEY: /app/certs/certificate-server.key
+      GRPC_MTLS_SERVER_KEY_PASSWORD: ${GRPC_MTLS_SERVER_KEY_PASSWORD:-}
     ports:
       - "8004:8004"
       - "9004:9004"
+    volumes:
+      - ./services/certificate/certs:/app/certs:ro
     depends_on:
       postgres-itaas:
         condition: service_healthy
@@ -233,21 +277,31 @@ services:
       CONTAINER_MGMT_DB_PASSWORD: postgres
       CONTAINER_MGMT_PORT: 8005
       CERTIFICATE_SERVICE_URL: https://certificate-service:8004
-      CERTIFICATE_SERVICE_CA: /certs/ca.crt
-      CERTIFICATE_SERVICE_CERT: /certs/client.crt
-      CERTIFICATE_SERVICE_KEY: /certs/client.key
-      MTLS_CA_CERT: /certs/ca.crt
-      MTLS_SERVER_CERT: /certs/server.crt
-      MTLS_SERVER_KEY: /certs/server.key
+      CERTIFICATE_SERVICE_CA: /app/certs/certificate-ca.crt
+      CERTIFICATE_SERVICE_CERT: /app/certs/container-management-client.crt
+      CERTIFICATE_SERVICE_KEY: /app/certs/container-management-client.key
+      MTLS_CA_CERT: /app/certs/container-management-ca.crt
+      MTLS_SERVER_CERT: /app/certs/container-management-server.crt
+      MTLS_SERVER_KEY: /app/certs/container-management-server.key
       BOOTSTRAP_TOKEN_SECRET: ${BOOTSTRAP_TOKEN_SECRET:-change-me-in-production}
       DOCKER_HOST: unix:///var/run/docker.sock
       CLIENT_CONTAINER_IMAGE: ${CLIENT_CONTAINER_IMAGE:-client-container:latest}
       CLIENT_CONTAINER_IMAGE_TAG: ${CLIENT_CONTAINER_IMAGE_TAG:-latest}
       DOCKER_NETWORK: microservices-network
+      # gRPC mTLS Server Configuration
+      GRPC_MTLS_CA_CERT: /app/certs/container-management-ca.crt
+      GRPC_MTLS_SERVER_CERT: /app/certs/container-management-server.crt
+      GRPC_MTLS_SERVER_KEY: /app/certs/container-management-server.key
+      GRPC_MTLS_SERVER_KEY_PASSWORD: ${GRPC_MTLS_SERVER_KEY_PASSWORD:-}
+      # Certificate Service gRPC mTLS Client Configuration (optional)
+      CERTIFICATE_SERVICE_GRPC_MTLS_CA: /app/certs/certificate-ca.crt
+      CERTIFICATE_SERVICE_GRPC_MTLS_CLIENT_CERT: /app/certs/container-management-client.crt
+      CERTIFICATE_SERVICE_GRPC_MTLS_CLIENT_KEY: /app/certs/container-management-client.key
     ports:
       - "8005:8005"
+      - "9005:9005"
     volumes:
-      - ./certs:/certs:ro
+      - ./services/container-management/certs:/app/certs:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       certificate-service:
@@ -273,8 +327,22 @@ services:
       LEGACY_DB_USER: postgres
       LEGACY_DB_PASSWORD: postgres
       LEGACY_DB_SCHEMA: public
+      # Auth Service gRPC mTLS Client Configuration
+      AUTH_SERVICE_GRPC_MTLS_CA: /app/certs/auth-ca.crt
+      AUTH_SERVICE_GRPC_MTLS_CLIENT_CERT: /app/certs/gateway-client.crt
+      AUTH_SERVICE_GRPC_MTLS_CLIENT_KEY: /app/certs/gateway-client.key
+      # Helpdesk Service gRPC mTLS Client Configuration
+      HELPDESK_SERVICE_GRPC_MTLS_CA: /app/certs/helpdesk-ca.crt
+      HELPDESK_SERVICE_GRPC_MTLS_CLIENT_CERT: /app/certs/gateway-client.crt
+      HELPDESK_SERVICE_GRPC_MTLS_CLIENT_KEY: /app/certs/gateway-client.key
+      # Notification Service gRPC mTLS Client Configuration
+      NOTIFICATION_SERVICE_GRPC_MTLS_CA: /app/certs/notification-ca.crt
+      NOTIFICATION_SERVICE_GRPC_MTLS_CLIENT_CERT: /app/certs/gateway-client.crt
+      NOTIFICATION_SERVICE_GRPC_MTLS_CLIENT_KEY: /app/certs/gateway-client.key
     ports:
       - "8080:8080"
+    volumes:
+      - ./services/gateway/certs:/app/certs:ro
     depends_on:
       auth-service:
         condition: service_started

@@ -6,8 +6,8 @@ import (
 	"os"
 	"strconv"
 
-	_ "github.com/lib/pq"
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -25,6 +25,12 @@ type Config struct {
 	Port     string
 	GRPCPort string
 
+	// gRPC mTLS Server Configuration
+	GRPCMTLSCACert        string
+	GRPCMTLSServerCert    string
+	GRPCMTLSServerKey     string
+	GRPCMTLSServerKeyPass string
+
 	// RabbitMQ
 	RabbitMQURL      string
 	RabbitMQUser     string
@@ -39,7 +45,12 @@ type Config struct {
 }
 
 func Load() *Config {
+	// Try service-specific .env first
 	_ = godotenv.Load(".env")
+	// Fall back to root .env if exists
+	if _, err := os.Stat("../../.env"); err == nil {
+		_ = godotenv.Overload("../../.env")
+	}
 
 	cfg := &Config{
 		DBHost:          getEnv("NOTIFICATION_DB_HOST", "localhost"),
@@ -49,6 +60,13 @@ func Load() *Config {
 		DBPassword:      getEnv("NOTIFICATION_DB_PASSWORD", "postgres"),
 		Port:            getEnv("NOTIFICATION_PORT", "8003"),
 		GRPCPort:        getEnv("NOTIFICATION_GRPC_PORT", "9003"),
+		
+		// gRPC mTLS Server Configuration
+		GRPCMTLSCACert:        getEnv("GRPC_MTLS_CA_CERT", "./certs/notification-ca.crt"),
+		GRPCMTLSServerCert:    getEnv("GRPC_MTLS_SERVER_CERT", "./certs/notification-server.crt"),
+		GRPCMTLSServerKey:     getEnv("GRPC_MTLS_SERVER_KEY", "./certs/notification-server.key"),
+		GRPCMTLSServerKeyPass: getEnv("GRPC_MTLS_SERVER_KEY_PASSWORD", ""),
+		
 		RabbitMQURL:     getEnv("RABBITMQ_URL", "amqp://localhost:5672"),
 		RabbitMQUser:    getEnv("RABBITMQ_USER", "rabbitmq"),
 		RabbitMQPassword: getEnv("RABBITMQ_PASSWORD", "rabbitmq"),

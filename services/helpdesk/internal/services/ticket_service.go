@@ -18,7 +18,7 @@ type TicketService struct {
 }
 
 func NewTicketService(cfg *config.Config, db *gorm.DB) *TicketService {
-	authClient := newAuthClient(cfg.AuthServiceGRPC)
+	authClient := newAuthClient(cfg)
 	rabbitMQ := newRabbitMQPublisher(cfg)
 	return &TicketService{
 		cfg:        cfg,

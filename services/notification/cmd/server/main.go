@@ -12,13 +12,15 @@ import (
 
 	"github.com/go-chi/chi"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"backend/services/notification/internal/config"
 	"backend/services/notification/internal/middleware"
-	notificationpb "backend/services/notification/proto"
 	"backend/services/notification/internal/providers"
 	"backend/services/notification/internal/services"
+	"backend/services/notification/internal/utils"
 	"backend/services/notification/internal/workers"
+	notificationpb "backend/services/notification/proto"
 )
 
 func main() {
@@ -48,7 +50,29 @@ func startGRPCServer(cfg *config.Config, notificationService *services.Notificat
 		log.Fatalf("failed to listen on gRPC port: %v", err)
 	}
 
-	s := grpc.NewServer()
+	var opts []grpc.ServerOption
+
+	// Use mTLS if certificates are configured
+	if cfg.GRPCMTLSCACert != "" && cfg.GRPCMTLSServerCert != "" && cfg.GRPCMTLSServerKey != "" {
+		creds, err := utils.LoadGRPCServerCredentials(
+			cfg.GRPCMTLSServerCert,
+			cfg.GRPCMTLSServerKey,
+			cfg.GRPCMTLSCACert,
+		)
+		if err != nil {
+			log.Printf("Warning: failed to load gRPC server TLS credentials: %v", err)
+			log.Println("Falling back to insecure connection")
+			opts = append(opts, grpc.Creds(insecure.NewCredentials()))
+		} else {
+			opts = append(opts, grpc.Creds(creds))
+			log.Println("gRPC server configured with mTLS")
+		}
+	} else {
+		log.Println("Warning: gRPC mTLS not configured, using insecure connection")
+		opts = append(opts, grpc.Creds(insecure.NewCredentials()))
+	}
+
+	s := grpc.NewServer(opts...)
 	notificationpb.RegisterNotificationServiceServer(s, services.NewNotificationGRPCServer(notificationService, templateService))
 
 	log.Printf("gRPC server listening on :%s", cfg.GRPCPort)

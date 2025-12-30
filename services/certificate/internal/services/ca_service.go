@@ -53,12 +53,12 @@ func (s *CAService) IssueCertificate(csrID int) (*models.Certificate, error) {
 	// Log the response for debugging
 	log.Printf("SignCSR response - CertPEM length: %d, CertPEM preview: %s",
 		len(signResp.CertPEM),
-		func() string {
+		/* func() string {
 			if len(signResp.CertPEM) > 100 {
 				return signResp.CertPEM[:100] + "..."
 			}
 			return signResp.CertPEM
-		}())
+		}() */signResp.CertPEM)
 
 	// Parse the certificate to extract metadata
 	if signResp.CertPEM == "" {
@@ -75,6 +75,14 @@ func (s *CAService) IssueCertificate(csrID int) (*models.Certificate, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse certificate: %v", err)
 	}
+
+	// Log certificate subject for debugging
+	log.Printf("Issued Certificate Subject - CN: %s, O: %v, OU: %v, C: %v",
+		cert.Subject.CommonName,
+		cert.Subject.Organization,
+		cert.Subject.OrganizationalUnit,
+		cert.Subject.Country,
+	)
 
 	// Store certificate in database
 	certificate := &models.Certificate{

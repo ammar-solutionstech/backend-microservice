@@ -14,12 +14,14 @@ import (
 
 	"github.com/go-chi/chi"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"backend/services/client-container/internal/config"
 	"backend/services/client-container/internal/middleware"
 	"backend/services/client-container/internal/routes"
 	"backend/services/client-container/internal/services"
+	"backend/services/client-container/internal/utils"
+	agentpb "backend/services/client-container/proto"
 )
 
 func main() {
@@ -38,24 +40,29 @@ func main() {
 	verificationService := services.NewVerificationService(cfg, cfg.DB)
 
 	// Initialize notification client
-	notificationClient, err := services.NewNotificationClient(cfg.NotificationServiceGRPC)
+	notificationClient, err := services.NewNotificationClient(cfg)
 	if err != nil {
 		log.Printf("Warning: Failed to create notification client: %v", err)
 		log.Println("Verification code notifications may not work until notification service is available")
 	}
 
 	// Initialize device service
-	//deviceService :=
-	services.NewDeviceService(cfg, cfg.DB, certClient, verificationService, notificationClient)
+	deviceService := services.NewDeviceService(cfg, cfg.DB, certClient, verificationService, notificationClient)
 
 	// Initialize container service
 	//containerService :=
 	services.NewContainerService(cfg, cfg.DB, certClient)
 
+	// Initialize agent version service
+	agentVersionService := services.NewAgentVersionService(cfg, cfg.DB)
+
+	// Initialize plugin service
+	pluginService := services.NewPluginService(cfg, cfg.DB)
+
 	// Initialize controllers
 	serviceController := routes.NewServiceController(serviceRegistry)
-	// DeviceController will be created when device routes are implemented
-	// For now, we'll add device routes directly or create a simple controller
+	agentController := routes.NewAgentController(agentVersionService, cfg.DB, cfg.UpdatePublicKey)
+	pluginController := routes.NewPluginController(pluginService)
 
 	// Setup HTTP router
 	mux := chi.NewRouter()
@@ -105,15 +112,27 @@ func main() {
 		})
 	})
 
-	// Agent download route (mTLS protected)
+	// Agent update routes (mTLS protected)
 	mux.Route("/api/v1/agents", func(r chi.Router) {
-		// TODO: Add mTLS middleware here
 		r.Use(middleware.MTLSMiddleware)
 
-		r.Get("/download", func(w http.ResponseWriter, r *http.Request) {
-			// TODO: Implement agent download handler
-			writeError(w, http.StatusNotImplemented, "agent download not yet implemented")
+		// Public key endpoint
+		r.Get("/public-key", agentController.GetPublicKey)
+
+		r.Route("/updates", func(upd chi.Router) {
+			upd.Get("/latest", agentController.GetLatestVersion)
+			upd.Get("/manifest/{version}", agentController.GetManifest)
+			upd.Get("/download/{version}", agentController.DownloadUpdate)
 		})
+	})
+
+	// Plugin routes (mTLS protected)
+	mux.Route("/api/v1/plugins", func(r chi.Router) {
+		r.Use(middleware.MTLSMiddleware)
+
+		r.Get("/", pluginController.ListPlugins)
+		r.Get("/{name}/manifest", pluginController.GetPluginManifest)
+		r.Get("/{name}/download", pluginController.DownloadPlugin)
 	})
 
 	// Create HTTP server
@@ -165,19 +184,33 @@ func main() {
 			log.Fatalf("failed to listen on gRPC port %s: %v", cfg.GRPCPort, err)
 		}
 
-		// TODO: Configure gRPC with mTLS
-		creds, err := credentials.NewServerTLSFromFile(cfg.ContainerCertPath, cfg.ContainerKeyPath)
-		if err != nil {
-			log.Fatalf("failed to load gRPC TLS credentials: %v", err)
+		// Configure gRPC with mTLS
+		var opts []grpc.ServerOption
+		if cfg.GRPCMTLSCACert != "" && cfg.GRPCMTLSServerCert != "" && cfg.GRPCMTLSServerKey != "" {
+			creds, err := utils.LoadGRPCServerCredentials(
+				cfg.GRPCMTLSServerCert,
+				cfg.GRPCMTLSServerKey,
+				cfg.GRPCMTLSCACert,
+			)
+			if err != nil {
+				log.Printf("Warning: failed to load gRPC server TLS credentials: %v", err)
+				log.Println("Falling back to insecure connection")
+				opts = append(opts, grpc.Creds(insecure.NewCredentials()))
+			} else {
+				opts = append(opts, grpc.Creds(creds))
+				log.Println("gRPC server configured with mTLS")
+			}
+		} else {
+			log.Println("Warning: gRPC mTLS not configured, using insecure connection")
+			opts = append(opts, grpc.Creds(insecure.NewCredentials()))
 		}
-		grpcServer = grpc.NewServer(grpc.Creds(creds))
 
-		// For now, start without TLS (not recommended for production)
-		// grpcServer = grpc.NewServer()
-		// grpcListener = lis
+		grpcServer = grpc.NewServer(opts...)
+		grpcListener = lis
 
-		// TODO: Register gRPC services when proto definitions are available
-		// agentpb.RegisterAgentServiceServer(grpcServer, &agentService{})
+		// Register agent gRPC service
+		agentGRPCService := services.NewAgentGRPCService(cfg, cfg.DB, deviceService)
+		agentpb.RegisterAgentServiceServer(grpcServer, agentGRPCService)
 
 		go func() {
 			log.Printf("Client Container gRPC service listening on :%s", cfg.GRPCPort)

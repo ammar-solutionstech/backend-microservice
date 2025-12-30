@@ -34,12 +34,23 @@ type Config struct {
 	CertificateServiceKeyPass   string
 	CertificateServiceTLSConfig *tls.Config
 
-	// mTLS Server Configuration
+	// mTLS Server Configuration (HTTP)
 	MTLSCACert        string
 	MTLSServerCert    string
 	MTLSServerKey     string
 	MTLSServerKeyPass string
 	MTLSTLSConfig     *tls.Config
+
+	// gRPC mTLS Server Configuration
+	GRPCMTLSCACert        string
+	GRPCMTLSServerCert    string
+	GRPCMTLSServerKey     string
+	GRPCMTLSServerKeyPass string
+
+	// gRPC mTLS Client Configuration (optional, for Certificate service)
+	CertificateServiceGRPCMTLSCA      string
+	CertificateServiceGRPCMTLSClientCert string
+	CertificateServiceGRPCMTLSClientKey  string
 
 	// Bootstrap Token
 	BootstrapTokenSecret string
@@ -68,7 +79,11 @@ type Config struct {
 }
 
 func Load() *Config {
+	// Try service-specific .env first, then root .env as fallback
 	_ = godotenv.Load(".env")
+	if _, err := os.Stat("../../.env"); err == nil {
+		_ = godotenv.Overload("../../.env") // Root .env as fallback
+	}
 
 	cfg := &Config{
 		DBHost:                    getEnv("CONTAINER_MGMT_DB_HOST", "localhost"),
@@ -78,19 +93,31 @@ func Load() *Config {
 		DBPassword:                getEnv("CONTAINER_MGMT_DB_PASSWORD", "postgres"),
 		Port:                      getEnv("CONTAINER_MGMT_PORT", "8005"),
 		CertificateServiceURL:     getEnv("CERTIFICATE_SERVICE_URL", "https://certificate-service:8004"),
-		CertificateServiceCA:      getEnv("CERTIFICATE_SERVICE_CA", ""),
-		CertificateServiceCert:    getEnv("CERTIFICATE_SERVICE_CERT", ""),
-		CertificateServiceKey:     getEnv("CERTIFICATE_SERVICE_KEY", ""),
-		CertificateServiceKeyPass: getEnv("CERTIFICATE_SERVICE_KEY_PASSWORD", ""),
-		MTLSCACert:                getEnv("MTLS_CA_CERT", ""),
-		MTLSServerCert:            getEnv("MTLS_SERVER_CERT", ""),
-		MTLSServerKey:             getEnv("MTLS_SERVER_KEY", ""),
+		CertificateServiceCA:      getEnv("CERTIFICATE_SERVICE_CA", "./certs/certificate-ca.crt"),
+		CertificateServiceCert:    getEnv("CERTIFICATE_SERVICE_CERT", "./certs/container-management-client.crt"),
+		CertificateServiceKey:     getEnv("CERTIFICATE_SERVICE_KEY", "./certs/container-management-client.key"),
+		CertificateServiceKeyPass:  getEnv("CERTIFICATE_SERVICE_KEY_PASSWORD", ""),
+		MTLSCACert:                getEnv("MTLS_CA_CERT", "./certs/container-management-ca.crt"),
+		MTLSServerCert:            getEnv("MTLS_SERVER_CERT", "./certs/container-management-server.crt"),
+		MTLSServerKey:             getEnv("MTLS_SERVER_KEY", "./certs/container-management-server.key"),
 		MTLSServerKeyPass:         getEnv("MTLS_SERVER_KEY_PASSWORD", ""),
+		
+		// gRPC mTLS Server Configuration
+		GRPCMTLSCACert:        getEnv("GRPC_MTLS_CA_CERT", "./certs/container-management-ca.crt"),
+		GRPCMTLSServerCert:    getEnv("GRPC_MTLS_SERVER_CERT", "./certs/container-management-server.crt"),
+		GRPCMTLSServerKey:     getEnv("GRPC_MTLS_SERVER_KEY", "./certs/container-management-server.key"),
+		GRPCMTLSServerKeyPass: getEnv("GRPC_MTLS_SERVER_KEY_PASSWORD", ""),
+		
+		// Certificate Service gRPC mTLS Client Configuration (optional)
+		CertificateServiceGRPCMTLSCA:           getEnv("CERTIFICATE_SERVICE_GRPC_MTLS_CA", "./certs/certificate-ca.crt"),
+		CertificateServiceGRPCMTLSClientCert:   getEnv("CERTIFICATE_SERVICE_GRPC_MTLS_CLIENT_CERT", "./certs/container-management-client.crt"),
+		CertificateServiceGRPCMTLSClientKey:    getEnv("CERTIFICATE_SERVICE_GRPC_MTLS_CLIENT_KEY", "./certs/container-management-client.key"),
+		
 		BootstrapTokenSecret:      getEnv("BOOTSTRAP_TOKEN_SECRET", ""),
 		CSRRequiredOrg:            getEnv("CSR_REQUIRED_ORG", ""),
 		CSRRequiredCountry:        getEnv("CSR_REQUIRED_COUNTRY", ""),
-		DockerHost:                getEnv("DOCKER_HOST", "unix:///var/run/docker.sock"),
-		ClientContainerImage:      getEnv("CLIENT_CONTAINER_IMAGE", "client-container"),
+		DockerHost:                getEnv("DOCKER_HOST", "npipe:////./pipe/docker_engine"),
+		ClientContainerImage:      getEnv("CLIENT_CONTAINER_IMAGE", "backend_v1-client-container"),
 		ClientContainerImageTag:   getEnv("CLIENT_CONTAINER_IMAGE_TAG", "latest"),
 		ClientContainerPort:       getEnv("CLIENT_CONTAINER_PORT", "8006"),
 		ClientContainerGRPCPort:   getEnv("CLIENT_CONTAINER_GRPC_PORT", "9006"),
@@ -101,8 +128,8 @@ func Load() *Config {
 		ClientContainerDBPassword: getEnv("CLIENT_CONTAINER_DB_PASSWORD", "postgres"),
 		ContainerMgmtServiceURL:   getEnv("CONTAINER_MGMT_SERVICE_URL", "https://container-management-service:8005"),
 		NotificationServiceGRPC:   getEnv("NOTIFICATION_SERVICE_GRPC", "notification-service:9003"),
-		CertificatesPath:          getEnv("CERTIFICATES_PATH", "/certs"),
-		DockerNetwork:             getEnv("DOCKER_NETWORK", "itaas-network"),
+		CertificatesPath:          getEnv("CERTIFICATES_PATH", "d:\\backend_v1\\certs"),
+		DockerNetwork:             getEnv("DOCKER_NETWORK", "microservices-network"),
 	}
 
 	if cfg.BootstrapTokenSecret == "" {
@@ -133,6 +160,7 @@ func initDB(cfg *Config) *gorm.DB {
 }
 
 func initCertificateServiceTLS(cfg *Config) *tls.Config {
+	//log.Printf("Certificate Service CA: %s , Certificate Service Cert: %s , Certificate Service Key: %s", cfg.CertificateServiceCA, cfg.CertificateServiceCert, cfg.CertificateServiceKey)
 	if cfg.CertificateServiceCA == "" || cfg.CertificateServiceCert == "" || cfg.CertificateServiceKey == "" {
 		log.Printf("Warning: Certificate service mTLS certificates not configured. mTLS will not be used.")
 		return nil
@@ -143,6 +171,7 @@ func initCertificateServiceTLS(cfg *Config) *tls.Config {
 	if err != nil {
 		log.Fatalf("failed to read certificate service CA cert: %v", err)
 	}
+	//log.Printf("Certificate Service CA:%s", string(caCert))
 
 	caCertPool := x509.NewCertPool()
 	if !caCertPool.AppendCertsFromPEM(caCert) {
@@ -168,7 +197,10 @@ func initCertificateServiceTLS(cfg *Config) *tls.Config {
 	return &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		RootCAs:      caCertPool,
-		ServerName:   "", // Will be set based on URL
+		ClientAuth:   tls.RequireAnyClientCert, //.RequireAndVerifyClientCert,
+		ClientCAs:    caCertPool,
+		//ServerName:         "", // Will be set based on URL
+		InsecureSkipVerify: true,
 	}
 }
 
@@ -205,9 +237,10 @@ func initServerTLS(cfg *Config) *tls.Config {
 	}
 
 	return &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		ClientCAs:    caCertPool,
+		Certificates:       []tls.Certificate{cert},
+		ClientAuth:         tls.RequireAnyClientCert, //RequireAndVerifyClientCert,
+		ClientCAs:          caCertPool,
+		InsecureSkipVerify: true,
 	}
 }
 

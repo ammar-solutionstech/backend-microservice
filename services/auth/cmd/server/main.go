@@ -16,8 +16,9 @@ import (
 	"backend/services/auth/internal/config"
 	"backend/services/auth/internal/middleware"
 	"backend/services/auth/internal/routes"
-	authpb "backend/services/auth/proto"
 	"backend/services/auth/internal/services"
+	"backend/services/auth/internal/utils"
+	authpb "backend/services/auth/proto"
 )
 
 func main() {
@@ -40,7 +41,21 @@ func startGRPCServer(cfg *config.Config, authService *services.AuthService, toke
 		log.Fatalf("failed to listen on gRPC port: %v", err)
 	}
 
-	s := grpc.NewServer()
+	var opts []grpc.ServerOption
+
+	// Configure mTLS if certificates are provided
+	if cfg.GRPCMTLSCACert != "" && cfg.GRPCMTLSServerCert != "" && cfg.GRPCMTLSServerKey != "" {
+		creds, err := utils.LoadGRPCServerCredentials(cfg.GRPCMTLSServerCert, cfg.GRPCMTLSServerKey, cfg.GRPCMTLSCACert)
+		if err != nil {
+			log.Fatalf("failed to load gRPC TLS credentials: %v", err)
+		}
+		opts = append(opts, grpc.Creds(creds))
+		log.Println("gRPC server configured with mTLS")
+	} else {
+		log.Println("Warning: gRPC server starting without TLS (not recommended for production)")
+	}
+
+	s := grpc.NewServer(opts...)
 	authpb.RegisterAuthServiceServer(s, services.NewAuthGRPCServer(cfg, authService, tokenService))
 	authpb.RegisterUserServiceServer(s, services.NewUserGRPCServer(authService))
 

@@ -3,10 +3,14 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"backend/services/client-container/internal/config"
+	"backend/services/client-container/internal/utils"
 	notificationpb "backend/services/notification/proto"
 )
 
@@ -17,8 +21,37 @@ type NotificationClient struct {
 }
 
 // NewNotificationClient creates a new notification service client
-func NewNotificationClient(grpcAddr string) (*NotificationClient, error) {
-	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+func NewNotificationClient(cfg *config.Config) (*NotificationClient, error) {
+	var opts []grpc.DialOption
+
+	// Use mTLS if certificates are configured
+	if cfg.NotificationServiceGRPCMTLSCA != "" && cfg.NotificationServiceGRPCMTLSClientCert != "" && cfg.NotificationServiceGRPCMTLSClientKey != "" {
+		// Extract server name from address (e.g., "notification-service:9003" -> "notification-service")
+		serverName := strings.Split(cfg.NotificationServiceGRPC, ":")[0]
+		if serverName == "" || serverName == "localhost" {
+			serverName = "notification-service"
+		}
+
+		creds, err := utils.LoadGRPCClientCredentials(
+			cfg.NotificationServiceGRPCMTLSClientCert,
+			cfg.NotificationServiceGRPCMTLSClientKey,
+			cfg.NotificationServiceGRPCMTLSCA,
+			serverName,
+		)
+		if err != nil {
+			log.Printf("Warning: failed to load Notification Service gRPC TLS credentials: %v", err)
+			log.Println("Falling back to insecure connection")
+			opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		} else {
+			opts = append(opts, grpc.WithTransportCredentials(creds))
+			log.Println("Notification Service gRPC client configured with mTLS")
+		}
+	} else {
+		log.Println("Warning: Notification Service gRPC mTLS not configured, using insecure connection")
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
+
+	conn, err := grpc.NewClient(cfg.NotificationServiceGRPC, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to notification service: %v", err)
 	}
