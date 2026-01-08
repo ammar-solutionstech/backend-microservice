@@ -10,13 +10,16 @@ import (
 )
 
 type Router struct {
-	cfg             *config.Config
-	authHandler     *handlers.AuthHandler
-	helpDeskHandler *handlers.HelpDeskHandler
-	legacyHandler   *handlers.LegacyHandler
+	cfg                *config.Config
+	authHandler        *handlers.AuthHandler
+	helpDeskHandler    *handlers.HelpDeskHandler
+	inventoryHandler   *handlers.InventoryHandler
+	geographyHandler   *handlers.GeographyHandler
+	navigationHandler  *handlers.NavigationHandler
+	legacyHandler      *handlers.LegacyHandler
 }
 
-func NewRouter(cfg *config.Config, authHandler *handlers.AuthHandler, helpDeskHandler *handlers.HelpDeskHandler, legacyHandler *handlers.LegacyHandler) *chi.Mux {
+func NewRouter(cfg *config.Config, authHandler *handlers.AuthHandler, helpDeskHandler *handlers.HelpDeskHandler, inventoryHandler *handlers.InventoryHandler, geographyHandler *handlers.GeographyHandler, navigationHandler *handlers.NavigationHandler, legacyHandler *handlers.LegacyHandler) *chi.Mux {
 	router := chi.NewRouter()
 
 	// Auth routes (public)
@@ -36,45 +39,125 @@ func NewRouter(cfg *config.Config, authHandler *handlers.AuthHandler, helpDeskHa
 		// Add more routes as needed
 	})
 
-	// Legacy routes (temporary)
-	router.Route("/api/inventory", func(r chi.Router) {
+	// Inventory routes (protected)
+	router.Route("/api/brands", func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
-		r.Get("/*", legacyHandler.HandleInventory)
-		r.Post("/*", legacyHandler.HandleInventory)
-		r.Put("/*", legacyHandler.HandleInventory)
-		r.Delete("/*", legacyHandler.HandleInventory)
+		r.Get("/*", inventoryHandler.Proxy)
+		r.Post("/*", inventoryHandler.Proxy)
+		r.Put("/*", inventoryHandler.Proxy)
+		r.Delete("/*", inventoryHandler.Proxy)
+	})
+	router.Route("/api/models", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
+		r.Get("/*", inventoryHandler.Proxy)
+		r.Post("/*", inventoryHandler.Proxy)
+		r.Put("/*", inventoryHandler.Proxy)
+		r.Delete("/*", inventoryHandler.Proxy)
+	})
+	router.Route("/api/equipment-types", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
+		r.Get("/*", inventoryHandler.Proxy)
+		r.Post("/*", inventoryHandler.Proxy)
+		r.Put("/*", inventoryHandler.Proxy)
+		r.Delete("/*", inventoryHandler.Proxy)
+	})
+	router.Route("/api/operating-systems", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
+		r.Get("/*", inventoryHandler.Proxy)
+		r.Post("/*", inventoryHandler.Proxy)
+		r.Put("/*", inventoryHandler.Proxy)
+		r.Delete("/*", inventoryHandler.Proxy)
+	})
+	router.Route("/api/software-categories", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
+		r.Get("/*", inventoryHandler.Proxy)
+		r.Post("/*", inventoryHandler.Proxy)
+		r.Put("/*", inventoryHandler.Proxy)
+		r.Delete("/*", inventoryHandler.Proxy)
+	})
+	router.Route("/api/software", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
+		r.Get("/*", inventoryHandler.Proxy)
+		r.Post("/*", inventoryHandler.Proxy)
+		r.Put("/*", inventoryHandler.Proxy)
+		r.Delete("/*", inventoryHandler.Proxy)
+	})
+	router.Route("/api/equipment", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
+		r.Get("/*", inventoryHandler.Proxy)
+		r.Post("/*", inventoryHandler.Proxy)
+		r.Put("/*", inventoryHandler.Proxy)
+		r.Delete("/*", inventoryHandler.Proxy)
+	})
+	router.Route("/api/documents", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
+		r.Get("/*", inventoryHandler.Proxy)
+		r.Post("/*", inventoryHandler.Proxy)
+		r.Put("/*", inventoryHandler.Proxy)
+		r.Delete("/*", inventoryHandler.Proxy)
+	})
+	router.Route("/api/maintenance", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
+		r.Get("/*", inventoryHandler.Proxy)
+		r.Post("/*", inventoryHandler.Proxy)
+		r.Put("/*", inventoryHandler.Proxy)
+		r.Delete("/*", inventoryHandler.Proxy)
 	})
 
-	router.Route("/api/geography", func(r chi.Router) {
+	// Geography routes (protected)
+	router.Route("/api/countries", func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
-		r.Get("/*", legacyHandler.HandleGeography)
-		r.Post("/*", legacyHandler.HandleGeography)
-		r.Put("/*", legacyHandler.HandleGeography)
-		r.Delete("/*", legacyHandler.HandleGeography)
+		r.Get("/*", geographyHandler.Proxy)
+		r.Post("/*", geographyHandler.Proxy)
+		r.Put("/*", geographyHandler.Proxy)
+		r.Delete("/*", geographyHandler.Proxy)
+	})
+	router.Route("/api/cities", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
+		r.Get("/*", geographyHandler.Proxy)
+		r.Post("/*", geographyHandler.Proxy)
+		r.Put("/*", geographyHandler.Proxy)
+		r.Delete("/*", geographyHandler.Proxy)
+	})
+	router.Route("/api/locations", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
+		r.Get("/*", geographyHandler.Proxy)
+		r.Post("/*", geographyHandler.Proxy)
+		r.Put("/*", geographyHandler.Proxy)
+		r.Delete("/*", geographyHandler.Proxy)
+	})
+	router.Route("/api/contacts", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
+		r.Get("/*", geographyHandler.Proxy)
+		r.Post("/*", geographyHandler.Proxy)
+		r.Put("/*", geographyHandler.Proxy)
+		r.Delete("/*", geographyHandler.Proxy)
 	})
 
-	router.Route("/api/navigation", func(r chi.Router) {
+	// Navigation routes (protected)
+	router.Route("/api/menus", func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
-		r.Get("/*", legacyHandler.HandleNavigation)
-		r.Post("/*", legacyHandler.HandleNavigation)
-		r.Put("/*", legacyHandler.HandleNavigation)
-		r.Delete("/*", legacyHandler.HandleNavigation)
+		r.Get("/*", navigationHandler.Proxy)
+		r.Post("/*", navigationHandler.Proxy)
+		r.Put("/*", navigationHandler.Proxy)
+		r.Delete("/*", navigationHandler.Proxy)
 	})
 
+	// Roles and Permissions routes (protected - now handled by Auth Service)
 	router.Route("/api/roles", func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
-		r.Get("/*", legacyHandler.HandleRoles)
-		r.Post("/*", legacyHandler.HandleRoles)
-		r.Put("/*", legacyHandler.HandleRoles)
-		r.Delete("/*", legacyHandler.HandleRoles)
+		r.Get("/*", authHandler.Proxy)
+		r.Post("/*", authHandler.Proxy)
+		r.Put("/*", authHandler.Proxy)
+		r.Delete("/*", authHandler.Proxy)
 	})
 
 	router.Route("/api/permissions", func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware(clients.NewAuthClient(cfg.AuthServiceGRPC)))
-		r.Get("/*", legacyHandler.HandlePermissions)
-		r.Post("/*", legacyHandler.HandlePermissions)
-		r.Put("/*", legacyHandler.HandlePermissions)
-		r.Delete("/*", legacyHandler.HandlePermissions)
+		r.Get("/*", authHandler.Proxy)
+		r.Post("/*", authHandler.Proxy)
+		r.Put("/*", authHandler.Proxy)
+		r.Delete("/*", authHandler.Proxy)
 	})
 
 	return router

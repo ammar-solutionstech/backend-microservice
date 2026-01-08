@@ -1,15 +1,10 @@
 package config
 
 import (
-	"fmt"
-	"log"
 	"os"
 	"strings"
 
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 type Config struct {
@@ -20,6 +15,9 @@ type Config struct {
 	AuthServiceGRPC         string
 	HelpDeskServiceGRPC     string
 	NotificationServiceGRPC string
+	InventoryServiceGRPC    string
+	GeographyServiceGRPC     string
+	NavigationServiceGRPC    string
 
 	// gRPC mTLS Client Configuration
 	// Auth Service
@@ -36,18 +34,28 @@ type Config struct {
 	NotificationServiceGRPCMTLSCA      string
 	NotificationServiceGRPCMTLSClientCert string
 	NotificationServiceGRPCMTLSClientKey  string
+	
+	// Inventory Service
+	InventoryServiceGRPCMTLSCA      string
+	InventoryServiceGRPCMTLSClientCert string
+	InventoryServiceGRPCMTLSClientKey  string
+	
+	// Geography Service
+	GeographyServiceGRPCMTLSCA      string
+	GeographyServiceGRPCMTLSClientCert string
+	GeographyServiceGRPCMTLSClientKey  string
+	
+	// Navigation Service
+	NavigationServiceGRPCMTLSCA      string
+	NavigationServiceGRPCMTLSClientCert string
+	NavigationServiceGRPCMTLSClientKey  string
 
 	// HTTP Services (for REST API proxying)
 	AuthServiceHTTP string
+	InventoryServiceHTTP string
+	GeographyServiceHTTP string
+	NavigationServiceHTTP string
 
-	// Legacy Database (for temporary handlers)
-	LegacyDBHost     string
-	LegacyDBPort     string
-	LegacyDBName     string
-	LegacyDBUser     string
-	LegacyDBPassword string
-	LegacyDBSchema   string
-	LegacyDB         *gorm.DB
 }
 
 func Load() *Config {
@@ -63,6 +71,9 @@ func Load() *Config {
 		AuthServiceGRPC:         getEnv("AUTH_SERVICE_GRPC", "localhost:9001"),
 		HelpDeskServiceGRPC:     getEnv("HELPDESK_SERVICE_GRPC", "localhost:9002"),
 		NotificationServiceGRPC: getEnv("NOTIFICATION_SERVICE_GRPC", "localhost:9003"),
+		InventoryServiceGRPC:    getEnv("INVENTORY_SERVICE_GRPC", "localhost:9007"),
+		GeographyServiceGRPC:     getEnv("GEOGRAPHY_SERVICE_GRPC", "localhost:9008"),
+		NavigationServiceGRPC:    getEnv("NAVIGATION_SERVICE_GRPC", "localhost:9009"),
 		
 		// Auth Service gRPC mTLS
 		AuthServiceGRPCMTLSCA:           getEnv("AUTH_SERVICE_GRPC_MTLS_CA", "./certs/auth-ca.crt"),
@@ -79,42 +90,40 @@ func Load() *Config {
 		NotificationServiceGRPCMTLSClientCert:   getEnv("NOTIFICATION_SERVICE_GRPC_MTLS_CLIENT_CERT", "./certs/gateway-client.crt"),
 		NotificationServiceGRPCMTLSClientKey:    getEnv("NOTIFICATION_SERVICE_GRPC_MTLS_CLIENT_KEY", "./certs/gateway-client.key"),
 		
-		// Determine Auth Service HTTP URL based on gRPC address
-		AuthServiceHTTP:  getAuthServiceHTTP(),
-		LegacyDBHost:     getEnv("LEGACY_DB_HOST", "localhost"),
-		LegacyDBPort:     getEnv("LEGACY_DB_PORT", "5432"),
-		LegacyDBName:     getEnv("LEGACY_DB_NAME", "ITaaS"),
-		LegacyDBUser:     getEnv("LEGACY_DB_USER", "postgres"),
-		LegacyDBPassword: getEnv("LEGACY_DB_PASSWORD", "postgres"),
-		LegacyDBSchema:   getEnv("LEGACY_DB_SCHEMA", "public"),
+		// Inventory Service gRPC mTLS
+		InventoryServiceGRPCMTLSCA:           getEnv("INVENTORY_SERVICE_GRPC_MTLS_CA", "./certs/inventory-ca.crt"),
+		InventoryServiceGRPCMTLSClientCert:   getEnv("INVENTORY_SERVICE_GRPC_MTLS_CLIENT_CERT", "./certs/gateway-client.crt"),
+		InventoryServiceGRPCMTLSClientKey:    getEnv("INVENTORY_SERVICE_GRPC_MTLS_CLIENT_KEY", "./certs/gateway-client.key"),
+		
+		// Geography Service gRPC mTLS
+		GeographyServiceGRPCMTLSCA:           getEnv("GEOGRAPHY_SERVICE_GRPC_MTLS_CA", "./certs/geography-ca.crt"),
+		GeographyServiceGRPCMTLSClientCert:   getEnv("GEOGRAPHY_SERVICE_GRPC_MTLS_CLIENT_CERT", "./certs/gateway-client.crt"),
+		GeographyServiceGRPCMTLSClientKey:    getEnv("GEOGRAPHY_SERVICE_GRPC_MTLS_CLIENT_KEY", "./certs/gateway-client.key"),
+		
+		// Navigation Service gRPC mTLS
+		NavigationServiceGRPCMTLSCA:           getEnv("NAVIGATION_SERVICE_GRPC_MTLS_CA", "./certs/navigation-ca.crt"),
+		NavigationServiceGRPCMTLSClientCert:   getEnv("NAVIGATION_SERVICE_GRPC_MTLS_CLIENT_CERT", "./certs/gateway-client.crt"),
+		NavigationServiceGRPCMTLSClientKey:    getEnv("NAVIGATION_SERVICE_GRPC_MTLS_CLIENT_KEY", "./certs/gateway-client.key"),
+		
+		// Determine HTTP URLs based on gRPC addresses
+		AuthServiceHTTP:  getServiceHTTP("AUTH_SERVICE_GRPC", "auth-service:8001", "localhost:8001"),
+		InventoryServiceHTTP: getServiceHTTP("INVENTORY_SERVICE_GRPC", "inventory-service:8007", "localhost:8007"),
+		GeographyServiceHTTP: getServiceHTTP("GEOGRAPHY_SERVICE_GRPC", "geography-service:8008", "localhost:8008"),
+		NavigationServiceHTTP: getServiceHTTP("NAVIGATION_SERVICE_GRPC", "navigation-service:8009", "localhost:8009"),
 	}
 
-	cfg.LegacyDB = initLegacyDB(cfg)
 	return cfg
 }
 
-func getAuthServiceHTTP() string {
-	grpcAddr := getEnv("AUTH_SERVICE_GRPC", "localhost:9001")
+func getServiceHTTP(envKey, dockerService, localhost string) string {
+	grpcAddr := getEnv(envKey, "")
 	// If using Docker service name, use HTTP service name; otherwise localhost
-	if strings.Contains(grpcAddr, "auth-service") {
-		return "http://auth-service:8001"
+	if strings.Contains(grpcAddr, strings.Split(dockerService, ":")[0]) {
+		return "http://" + dockerService
 	}
-	return "http://localhost:8001"
+	return "http://" + localhost
 }
 
-func initLegacyDB(cfg *Config) *gorm.DB {
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable search_path=%s",
-		cfg.LegacyDBHost, cfg.LegacyDBPort, cfg.LegacyDBUser, cfg.LegacyDBPassword, cfg.LegacyDBName, cfg.LegacyDBSchema)
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		log.Printf("Warning: failed to connect to legacy DB: %v", err)
-		return nil
-	}
-
-	log.Println("Connected to Legacy PostgreSQL database")
-	return db
-}
 
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {

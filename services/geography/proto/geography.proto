@@ -1,0 +1,212 @@
+syntax = "proto3";
+
+package geography;
+
+option go_package = "backend/services/geography/proto";
+
+// Geography Service gRPC API
+service GeographyService {
+  // Country operations
+  rpc GetCountry(GetCountryRequest) returns (CountryResponse);
+  rpc ListCountries(ListCountriesRequest) returns (ListCountriesResponse);
+  rpc CreateCountry(CreateCountryRequest) returns (CountryResponse);
+  rpc UpdateCountry(UpdateCountryRequest) returns (CountryResponse);
+  rpc DeleteCountry(DeleteCountryRequest) returns (DeleteCountryResponse);
+  
+  // City operations
+  rpc GetCity(GetCityRequest) returns (CityResponse);
+  rpc ListCities(ListCitiesRequest) returns (ListCitiesResponse);
+  rpc CreateCity(CreateCityRequest) returns (CityResponse);
+  rpc UpdateCity(UpdateCityRequest) returns (CityResponse);
+  rpc DeleteCity(DeleteCityRequest) returns (DeleteCityResponse);
+  
+  // Location operations
+  rpc GetLocation(GetLocationRequest) returns (LocationResponse);
+  rpc ListLocations(ListLocationsRequest) returns (ListLocationsResponse);
+  rpc CreateLocation(CreateLocationRequest) returns (LocationResponse);
+  rpc UpdateLocation(UpdateLocationRequest) returns (LocationResponse);
+  rpc DeleteLocation(DeleteLocationRequest) returns (DeleteLocationResponse);
+  
+  // Contact operations
+  rpc GetContact(GetContactRequest) returns (ContactResponse);
+  rpc ListContacts(ListContactsRequest) returns (ListContactsResponse);
+  rpc CreateContact(CreateContactRequest) returns (ContactResponse);
+  rpc UpdateContact(UpdateContactRequest) returns (ContactResponse);
+  rpc DeleteContact(DeleteContactRequest) returns (DeleteContactResponse);
+}
+
+// Country messages
+message GetCountryRequest {
+  int32 id = 1;
+}
+
+message ListCountriesRequest {
+}
+
+message CreateCountryRequest {
+  string name = 1;
+  string code = 2;
+}
+
+message UpdateCountryRequest {
+  int32 id = 1;
+  map<string, string> updates = 2;
+}
+
+message DeleteCountryRequest {
+  int32 id = 1;
+}
+
+message Country {
+  int32 id = 1;
+  string name = 2;
+  string code = 3;
+}
+
+message CountryResponse {
+  Country country = 1;
+}
+
+message ListCountriesResponse {
+  repeated Country countries = 1;
+}
+
+message DeleteCountryResponse {
+  bool success = 1;
+}
+
+// City messages
+message GetCityRequest {
+  int32 id = 1;
+}
+
+message ListCitiesRequest {
+}
+
+message CreateCityRequest {
+  string name = 1;
+  int32 country_id = 2;
+}
+
+message UpdateCityRequest {
+  int32 id = 1;
+  map<string, string> updates = 2;
+}
+
+message DeleteCityRequest {
+  int32 id = 1;
+}
+
+message City {
+  int32 id = 1;
+  string name = 2;
+  int32 country_id = 3;
+}
+
+message CityResponse {
+  City city = 1;
+}
+
+message ListCitiesResponse {
+  repeated City cities = 1;
+}
+
+message DeleteCityResponse {
+  bool success = 1;
+}
+
+// Location messages
+message GetLocationRequest {
+  int32 id = 1;
+}
+
+message ListLocationsRequest {
+}
+
+message CreateLocationRequest {
+  Location location = 1;
+}
+
+message UpdateLocationRequest {
+  int32 id = 1;
+  map<string, string> updates = 2;
+}
+
+message DeleteLocationRequest {
+  int32 id = 1;
+}
+
+message Location {
+  int32 id = 1;
+  string name = 2;
+  string zip_code = 3;
+  string state = 4;
+  int32 building_number = 5;
+  int32 room_number = 6;
+  double latitude = 7;
+  double longitude = 8;
+  int32 country_id = 9;
+  int32 city_id = 10;
+  string location_map = 11;
+}
+
+message LocationResponse {
+  Location location = 1;
+}
+
+message ListLocationsResponse {
+  repeated Location locations = 1;
+}
+
+message DeleteLocationResponse {
+  bool success = 1;
+}
+
+// Contact messages
+message GetContactRequest {
+  int32 id = 1;
+}
+
+message ListContactsRequest {
+}
+
+message CreateContactRequest {
+  string name = 1;
+  int32 country_id = 2;
+  string mobile_number = 3;
+  string phone_number = 4;
+  string website = 5;
+  string email = 6;
+}
+
+message UpdateContactRequest {
+  int32 id = 1;
+  map<string, string> updates = 2;
+}
+
+message DeleteContactRequest {
+  int32 id = 1;
+}
+
+message Contact {
+  int32 id = 1;
+  string name = 2;
+  int32 country_id = 3;
+  string mobile_number = 4;
+  string phone_number = 5;
+  string website = 6;
+  string email = 7;
+}
+
+message ContactResponse {
+  Contact contact = 1;
+}
+
+message ListContactsResponse {
+  repeated Contact contacts = 1;
+}
+
+message DeleteContactResponse {
+  bool success = 1;
+}
+

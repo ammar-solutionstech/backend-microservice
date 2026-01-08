@@ -1,0 +1,298 @@
+syntax = "proto3";
+
+package inventory;
+
+option go_package = "backend/services/inventory/proto";
+
+// Inventory Service gRPC API
+service InventoryService {
+  // Equipment operations
+  rpc GetEquipment(GetEquipmentRequest) returns (EquipmentResponse);
+  rpc ListEquipment(ListEquipmentRequest) returns (ListEquipmentResponse);
+  rpc CreateEquipment(CreateEquipmentRequest) returns (EquipmentResponse);
+  rpc UpdateEquipment(UpdateEquipmentRequest) returns (EquipmentResponse);
+  rpc DeleteEquipment(DeleteEquipmentRequest) returns (DeleteEquipmentResponse);
+  
+  // Equipment Software relationships
+  rpc ListEquipmentSoftware(ListEquipmentSoftwareRequest) returns (ListEquipmentSoftwareResponse);
+  rpc LinkEquipmentSoftware(LinkEquipmentSoftwareRequest) returns (LinkEquipmentSoftwareResponse);
+  rpc UnlinkEquipmentSoftware(UnlinkEquipmentSoftwareRequest) returns (UnlinkEquipmentSoftwareResponse);
+  
+  // Equipment Help Desk relationships
+  rpc ListEquipmentHelpDeskLinks(ListEquipmentHelpDeskLinksRequest) returns (ListEquipmentHelpDeskLinksResponse);
+  rpc LinkEquipmentHelpDesk(LinkEquipmentHelpDeskRequest) returns (LinkEquipmentHelpDeskResponse);
+  rpc UnlinkEquipmentHelpDesk(UnlinkEquipmentHelpDeskRequest) returns (UnlinkEquipmentHelpDeskResponse);
+  
+  // Equipment User History
+  rpc ListEquipmentUserHistory(ListEquipmentUserHistoryRequest) returns (ListEquipmentUserHistoryResponse);
+  rpc CreateEquipmentUserHistory(CreateEquipmentUserHistoryRequest) returns (EquipmentUserHistoryResponse);
+  rpc UpdateEquipmentUserHistory(UpdateEquipmentUserHistoryRequest) returns (EquipmentUserHistoryResponse);
+  rpc DeleteEquipmentUserHistory(DeleteEquipmentUserHistoryRequest) returns (DeleteEquipmentUserHistoryResponse);
+  
+  // Brand operations
+  rpc GetBrand(GetBrandRequest) returns (BrandResponse);
+  rpc ListBrands(ListBrandsRequest) returns (ListBrandsResponse);
+  rpc CreateBrand(CreateBrandRequest) returns (BrandResponse);
+  rpc UpdateBrand(UpdateBrandRequest) returns (BrandResponse);
+  rpc DeleteBrand(DeleteBrandRequest) returns (DeleteBrandResponse);
+  
+  // Model operations
+  rpc GetModel(GetModelRequest) returns (ModelResponse);
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+  rpc CreateModel(CreateModelRequest) returns (ModelResponse);
+  rpc UpdateModel(UpdateModelRequest) returns (ModelResponse);
+  rpc DeleteModel(DeleteModelRequest) returns (DeleteModelResponse);
+}
+
+// Request/Response messages
+message GetEquipmentRequest {
+  int32 id = 1;
+}
+
+message ListEquipmentRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message CreateEquipmentRequest {
+  Equipment equipment = 1;
+}
+
+message UpdateEquipmentRequest {
+  int32 id = 1;
+  map<string, string> updates = 2;
+}
+
+message DeleteEquipmentRequest {
+  int32 id = 1;
+}
+
+message Equipment {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+  bool state = 4;
+  string serial_number = 5;
+  int32 equipment_type_id = 6;
+  int32 model_id = 7;
+  string production_date = 8;
+  string ip_v4 = 9;
+  string ip_v6 = 10;
+  string mac_address = 11;
+  int32 operating_system_id = 12;
+  int32 location_id = 13;
+  string processors = 14;
+  int32 country_of_region = 15;
+  int32 user_id = 16;
+  string warranty_start_date = 17;
+  string warranty_end_date = 18;
+  int32 supplier_id = 19;
+}
+
+message EquipmentResponse {
+  Equipment equipment = 1;
+}
+
+message ListEquipmentResponse {
+  repeated Equipment equipment = 1;
+  int32 total = 2;
+}
+
+message DeleteEquipmentResponse {
+  bool success = 1;
+}
+
+// Equipment Software messages
+message ListEquipmentSoftwareRequest {
+  int32 equipment_id = 1;
+}
+
+message LinkEquipmentSoftwareRequest {
+  int32 equipment_id = 1;
+  int32 software_id = 2;
+  string software_version = 3;
+  int32 software_size = 4;
+  string license = 5;
+}
+
+message UnlinkEquipmentSoftwareRequest {
+  int32 equipment_id = 1;
+  int32 software_id = 2;
+}
+
+message EquipmentSoftware {
+  int32 equipment_id = 1;
+  int32 software_id = 2;
+  string software_version = 3;
+  int32 software_size = 4;
+  string license = 5;
+}
+
+message ListEquipmentSoftwareResponse {
+  repeated EquipmentSoftware links = 1;
+}
+
+message LinkEquipmentSoftwareResponse {
+  EquipmentSoftware link = 1;
+}
+
+message UnlinkEquipmentSoftwareResponse {
+  bool success = 1;
+}
+
+// Equipment Help Desk messages
+message ListEquipmentHelpDeskLinksRequest {
+  int32 equipment_id = 1;
+}
+
+message LinkEquipmentHelpDeskRequest {
+  int32 equipment_id = 1;
+  int32 help_desk_id = 2;
+}
+
+message UnlinkEquipmentHelpDeskRequest {
+  int32 equipment_id = 1;
+  int32 help_desk_id = 2;
+}
+
+message EquipmentHelpDeskLink {
+  int32 equipment_id = 1;
+  int32 help_desk_id = 2;
+}
+
+message ListEquipmentHelpDeskLinksResponse {
+  repeated EquipmentHelpDeskLink links = 1;
+}
+
+message LinkEquipmentHelpDeskResponse {
+  EquipmentHelpDeskLink link = 1;
+}
+
+message UnlinkEquipmentHelpDeskResponse {
+  bool success = 1;
+}
+
+// Equipment User History messages
+message ListEquipmentUserHistoryRequest {
+  int32 equipment_id = 1;
+}
+
+message CreateEquipmentUserHistoryRequest {
+  int32 equipment_id = 1;
+  int32 user_id = 2;
+  string start_date = 3;
+  string end_date = 4;
+  string comment = 5;
+}
+
+message UpdateEquipmentUserHistoryRequest {
+  int32 equipment_id = 1;
+  int32 user_id = 2;
+  string start_date = 3;
+  map<string, string> updates = 4;
+}
+
+message DeleteEquipmentUserHistoryRequest {
+  int32 equipment_id = 1;
+  int32 user_id = 2;
+  string start_date = 3;
+}
+
+message EquipmentUserHistory {
+  int32 equipment_id = 1;
+  int32 user_id = 2;
+  string start_date = 3;
+  string end_date = 4;
+  string comment = 5;
+}
+
+message ListEquipmentUserHistoryResponse {
+  repeated EquipmentUserHistory history = 1;
+}
+
+message EquipmentUserHistoryResponse {
+  EquipmentUserHistory history = 1;
+}
+
+message DeleteEquipmentUserHistoryResponse {
+  bool success = 1;
+}
+
+// Brand messages
+message GetBrandRequest {
+  int32 id = 1;
+}
+
+message ListBrandsRequest {
+}
+
+message CreateBrandRequest {
+  string name = 1;
+}
+
+message UpdateBrandRequest {
+  int32 id = 1;
+  map<string, string> updates = 2;
+}
+
+message DeleteBrandRequest {
+  int32 id = 1;
+}
+
+message Brand {
+  int32 id = 1;
+  string name = 2;
+}
+
+message BrandResponse {
+  Brand brand = 1;
+}
+
+message ListBrandsResponse {
+  repeated Brand brands = 1;
+}
+
+message DeleteBrandResponse {
+  bool success = 1;
+}
+
+// Model messages
+message GetModelRequest {
+  int32 id = 1;
+}
+
+message ListModelsRequest {
+}
+
+message CreateModelRequest {
+  string name = 1;
+  int32 brand_id = 2;
+}
+
+message UpdateModelRequest {
+  int32 id = 1;
+  map<string, string> updates = 2;
+}
+
+message DeleteModelRequest {
+  int32 id = 1;
+}
+
+message Model {
+  int32 id = 1;
+  string name = 2;
+  int32 brand_id = 3;
+}
+
+message ModelResponse {
+  Model model = 1;
+}
+
+message ListModelsResponse {
+  repeated Model models = 1;
+}
+
+message DeleteModelResponse {
+  bool success = 1;
+}
+

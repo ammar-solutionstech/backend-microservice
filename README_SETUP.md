@@ -21,25 +21,23 @@ go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
 # Generate code for all services
-protoc --go_out=. --go_opt=paths=source_relative \
-    --go-grpc_out=. --go-grpc_opt=paths=source_relative \
-    services/auth/proto/auth.proto
-
-protoc --go_out=. --go_opt=paths=source_relative \
-    --go-grpc_out=. --go-grpc_opt=paths=source_relative \
-    services/helpdesk/proto/helpdesk.proto
-
-protoc --go_out=. --go_opt=paths=source_relative \
-    --go-grpc_out=. --go-grpc_opt=paths=source_relative \
-    services/notification/proto/notification.proto
-```
-
-Or use the PowerShell script:
-```powershell
+# Or use the PowerShell script (recommended):
 .\generate-proto.ps1
-```
 
-**Important**: The placeholder `.pb.go` files will be overwritten with actual generated code.
+# Or use Makefile:
+make proto
+
+# The script generates code for:
+# - Auth Service
+# - Help Desk Service
+# - Notification Service
+# - Inventory Service (NEW)
+# - Geography Service (NEW)
+# - Navigation Service (NEW)
+# - Client Container Service
+# - Agent
+
+**Note**: Proto code has already been generated. Re-run if you modify `.proto` files.
 
 ## Step 2: Set Environment Variables
 
@@ -78,9 +76,20 @@ psql -h localhost -U postgres -d helpdesk_db -f services/helpdesk/migrations/001
 
 # For Notification Service
 psql -h localhost -U postgres -d notification_db -f services/notification/migrations/001_initial_schema.sql
+
+# For Inventory Service (NEW)
+psql -h localhost -U postgres -d inventory_db -f services/inventory/migrations/001_initial_schema.sql
+
+# For Geography Service (NEW)
+psql -h localhost -U postgres -d geography_db -f services/geography/migrations/001_initial_schema.sql
+
+# For Navigation Service (NEW)
+psql -h localhost -U postgres -d navigation_db -f services/navigation/migrations/001_initial_schema.sql
 ```
 
 Or use Docker Compose to start databases and run migrations manually.
+
+**Note**: After migrations, you can migrate data from the monolithic database using scripts in `extra/` directory. See `extra/DATA_MIGRATION_README.md` for details.
 
 ## Step 4: Start Services with Docker Compose
 
@@ -89,9 +98,9 @@ docker-compose up -d
 ```
 
 This will start:
-- PostgreSQL databases (auth_db, helpdesk_db, notification_db, legacy_db)
+- PostgreSQL databases (auth_db, helpdesk_db, notification_db, inventory_db, geography_db, navigation_db)
 - RabbitMQ
-- All microservices (auth, helpdesk, notification, gateway)
+- All microservices (auth, helpdesk, notification, inventory, geography, navigation, gateway)
 
 ## Step 5: Build and Run Services Locally (Alternative)
 
@@ -112,6 +121,21 @@ go build -o ../../bin/helpdesk-service ./cmd/server
 cd services/notification
 go build -o ../../bin/notification-service ./cmd/server
 ./bin/notification-service
+
+# Build Inventory Service (NEW)
+cd services/inventory
+go build -o ../../bin/inventory-service ./cmd/server
+./bin/inventory-service
+
+# Build Geography Service (NEW)
+cd services/geography
+go build -o ../../bin/geography-service ./cmd/server
+./bin/geography-service
+
+# Build Navigation Service (NEW)
+cd services/navigation
+go build -o ../../bin/navigation-service ./cmd/server
+./bin/navigation-service
 
 # Build Gateway
 cd services/gateway
@@ -135,6 +159,15 @@ curl http://localhost:8002/health
 
 # Notification Service
 curl http://localhost:8003/health
+
+# Inventory Service (NEW)
+curl http://localhost:8007/health
+
+# Geography Service (NEW)
+curl http://localhost:8008/health
+
+# Navigation Service (NEW)
+curl http://localhost:8009/health
 ```
 
 ## Testing

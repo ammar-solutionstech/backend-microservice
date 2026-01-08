@@ -128,7 +128,7 @@ func Load() *Config {
 		ClientContainerDBPassword: getEnv("CLIENT_CONTAINER_DB_PASSWORD", "postgres"),
 		ContainerMgmtServiceURL:   getEnv("CONTAINER_MGMT_SERVICE_URL", "https://container-management-service:8005"),
 		NotificationServiceGRPC:   getEnv("NOTIFICATION_SERVICE_GRPC", "notification-service:9003"),
-		CertificatesPath:          getEnv("CERTIFICATES_PATH", "d:\\backend_v1\\certs"),
+		CertificatesPath:          getEnv("CERTIFICATES_PATH", "./certs"),
 		DockerNetwork:             getEnv("DOCKER_NETWORK", "microservices-network"),
 	}
 

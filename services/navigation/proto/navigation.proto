@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package navigation;
+
+option go_package = "backend/services/navigation/proto";
+
+// Navigation Service gRPC API
+service NavigationService {
+  // Menu operations
+  rpc GetMenu(GetMenuRequest) returns (MenuResponse);
+  rpc ListMenus(ListMenusRequest) returns (ListMenusResponse);
+  rpc CreateMenu(CreateMenuRequest) returns (MenuResponse);
+  rpc UpdateMenu(UpdateMenuRequest) returns (MenuResponse);
+  rpc DeleteMenu(DeleteMenuRequest) returns (DeleteMenuResponse);
+  
+  // Menu Role operations
+  rpc ListMenuRoles(ListMenuRolesRequest) returns (ListMenuRolesResponse);
+  rpc AddMenuRole(AddMenuRoleRequest) returns (AddMenuRoleResponse);
+  rpc RemoveMenuRole(RemoveMenuRoleRequest) returns (RemoveMenuRoleResponse);
+}
+
+// Menu messages
+message GetMenuRequest {
+  int32 id = 1;
+}
+
+message ListMenusRequest {
+}
+
+message CreateMenuRequest {
+  string name = 1;
+  string title = 2;
+  string uri = 3;
+}
+
+message UpdateMenuRequest {
+  int32 id = 1;
+  map<string, string> updates = 2;
+}
+
+message DeleteMenuRequest {
+  int32 id = 1;
+}
+
+message Menu {
+  int32 id = 1;
+  string name = 2;
+  string title = 3;
+  string uri = 4;
+}
+
+message MenuResponse {
+  Menu menu = 1;
+}
+
+message ListMenusResponse {
+  repeated Menu menus = 1;
+}
+
+message DeleteMenuResponse {
+  bool success = 1;
+}
+
+// Menu Role messages
+message ListMenuRolesRequest {
+  int32 menu_id = 1;
+}
+
+message AddMenuRoleRequest {
+  int32 menu_id = 1;
+  int32 role_id = 2;
+}
+
+message RemoveMenuRoleRequest {
+  int32 menu_id = 1;
+  int32 role_id = 2;
+}
+
+message MenuRole {
+  int32 menu_id = 1;
+  int32 role_id = 2;
+}
+
+message ListMenuRolesResponse {
+  repeated MenuRole menu_roles = 1;
+}
+
+message AddMenuRoleResponse {
+  MenuRole menu_role = 1;
+}
+
+message RemoveMenuRoleResponse {
+  bool success = 1;
+}
+

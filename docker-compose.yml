@@ -262,6 +262,96 @@ services:
     networks:
       - microservices-network
 
+  # Inventory Service
+  inventory-service:
+    build:
+      context: .
+      dockerfile: ./services/inventory/Dockerfile
+    container_name: inventory-service
+    environment:
+      INVENTORY_DB_HOST: postgres-itaas
+      INVENTORY_DB_PORT: 5432
+      INVENTORY_DB_NAME: inventory_db
+      INVENTORY_DB_USER: postgres
+      INVENTORY_DB_PASSWORD: postgres
+      INVENTORY_PORT: 8007
+      INVENTORY_GRPC_PORT: 9007
+      # gRPC mTLS Server Configuration
+      GRPC_MTLS_CA_CERT: /app/certs/inventory-ca.crt
+      GRPC_MTLS_SERVER_CERT: /app/certs/inventory-server.crt
+      GRPC_MTLS_SERVER_KEY: /app/certs/inventory-server.key
+      GRPC_MTLS_SERVER_KEY_PASSWORD: ${GRPC_MTLS_SERVER_KEY_PASSWORD:-}
+    ports:
+      - "8007:8007"
+      - "9007:9007"
+    volumes:
+      - ./services/inventory/certs:/app/certs:ro
+    depends_on:
+      postgres-itaas:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  # Geography Service
+  geography-service:
+    build:
+      context: .
+      dockerfile: ./services/geography/Dockerfile
+    container_name: geography-service
+    environment:
+      GEOGRAPHY_DB_HOST: postgres-itaas
+      GEOGRAPHY_DB_PORT: 5432
+      GEOGRAPHY_DB_NAME: geography_db
+      GEOGRAPHY_DB_USER: postgres
+      GEOGRAPHY_DB_PASSWORD: postgres
+      GEOGRAPHY_PORT: 8008
+      GEOGRAPHY_GRPC_PORT: 9008
+      # gRPC mTLS Server Configuration
+      GRPC_MTLS_CA_CERT: /app/certs/geography-ca.crt
+      GRPC_MTLS_SERVER_CERT: /app/certs/geography-server.crt
+      GRPC_MTLS_SERVER_KEY: /app/certs/geography-server.key
+      GRPC_MTLS_SERVER_KEY_PASSWORD: ${GRPC_MTLS_SERVER_KEY_PASSWORD:-}
+    ports:
+      - "8008:8008"
+      - "9008:9008"
+    volumes:
+      - ./services/geography/certs:/app/certs:ro
+    depends_on:
+      postgres-itaas:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  # Navigation Service
+  navigation-service:
+    build:
+      context: .
+      dockerfile: ./services/navigation/Dockerfile
+    container_name: navigation-service
+    environment:
+      NAVIGATION_DB_HOST: postgres-itaas
+      NAVIGATION_DB_PORT: 5432
+      NAVIGATION_DB_NAME: navigation_db
+      NAVIGATION_DB_USER: postgres
+      NAVIGATION_DB_PASSWORD: postgres
+      NAVIGATION_PORT: 8009
+      NAVIGATION_GRPC_PORT: 9009
+      # gRPC mTLS Server Configuration
+      GRPC_MTLS_CA_CERT: /app/certs/navigation-ca.crt
+      GRPC_MTLS_SERVER_CERT: /app/certs/navigation-server.crt
+      GRPC_MTLS_SERVER_KEY: /app/certs/navigation-server.key
+      GRPC_MTLS_SERVER_KEY_PASSWORD: ${GRPC_MTLS_SERVER_KEY_PASSWORD:-}
+    ports:
+      - "8009:8009"
+      - "9009:9009"
+    volumes:
+      - ./services/navigation/certs:/app/certs:ro
+    depends_on:
+      postgres-itaas:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
   # API Gateway
   # Container Management Service
   container-management-service:
@@ -321,12 +411,9 @@ services:
       AUTH_SERVICE_GRPC: auth-service:9001
       HELPDESK_SERVICE_GRPC: helpdesk-service:9002
       NOTIFICATION_SERVICE_GRPC: notification-service:9003
-      LEGACY_DB_HOST: postgres-itaas
-      LEGACY_DB_PORT: 5432
-      LEGACY_DB_NAME: ITaaS
-      LEGACY_DB_USER: postgres
-      LEGACY_DB_PASSWORD: postgres
-      LEGACY_DB_SCHEMA: public
+      INVENTORY_SERVICE_GRPC: inventory-service:9007
+      GEOGRAPHY_SERVICE_GRPC: geography-service:9008
+      NAVIGATION_SERVICE_GRPC: navigation-service:9009
       # Auth Service gRPC mTLS Client Configuration
       AUTH_SERVICE_GRPC_MTLS_CA: /app/certs/auth-ca.crt
       AUTH_SERVICE_GRPC_MTLS_CLIENT_CERT: /app/certs/gateway-client.crt
@@ -339,6 +426,18 @@ services:
       NOTIFICATION_SERVICE_GRPC_MTLS_CA: /app/certs/notification-ca.crt
       NOTIFICATION_SERVICE_GRPC_MTLS_CLIENT_CERT: /app/certs/gateway-client.crt
       NOTIFICATION_SERVICE_GRPC_MTLS_CLIENT_KEY: /app/certs/gateway-client.key
+      # Inventory Service gRPC mTLS Client Configuration
+      INVENTORY_SERVICE_GRPC_MTLS_CA: /app/certs/inventory-ca.crt
+      INVENTORY_SERVICE_GRPC_MTLS_CLIENT_CERT: /app/certs/gateway-client.crt
+      INVENTORY_SERVICE_GRPC_MTLS_CLIENT_KEY: /app/certs/gateway-client.key
+      # Geography Service gRPC mTLS Client Configuration
+      GEOGRAPHY_SERVICE_GRPC_MTLS_CA: /app/certs/geography-ca.crt
+      GEOGRAPHY_SERVICE_GRPC_MTLS_CLIENT_CERT: /app/certs/gateway-client.crt
+      GEOGRAPHY_SERVICE_GRPC_MTLS_CLIENT_KEY: /app/certs/gateway-client.key
+      # Navigation Service gRPC mTLS Client Configuration
+      NAVIGATION_SERVICE_GRPC_MTLS_CA: /app/certs/navigation-ca.crt
+      NAVIGATION_SERVICE_GRPC_MTLS_CLIENT_CERT: /app/certs/gateway-client.crt
+      NAVIGATION_SERVICE_GRPC_MTLS_CLIENT_KEY: /app/certs/gateway-client.key
     ports:
       - "8080:8080"
     volumes:
@@ -350,8 +449,12 @@ services:
         condition: service_started
       notification-service:
         condition: service_started
-      postgres-itaas:
-        condition: service_healthy
+      inventory-service:
+        condition: service_started
+      geography-service:
+        condition: service_started
+      navigation-service:
+        condition: service_started
     networks:
       - microservices-network
 

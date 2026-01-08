@@ -23,6 +23,15 @@ psql -v ON_ERROR_STOP=1 -U postgres <<-EOSQL
     SELECT 'CREATE DATABASE container_mgmt_db'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'container_mgmt_db')\gexec
     
+    SELECT 'CREATE DATABASE inventory_db'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'inventory_db')\gexec
+    
+    SELECT 'CREATE DATABASE geography_db'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'geography_db')\gexec
+    
+    SELECT 'CREATE DATABASE navigation_db'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'navigation_db')\gexec
+    
     SELECT 'CREATE DATABASE "ITaaS"'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'ITaaS')\gexec
 EOSQL
@@ -41,5 +50,14 @@ psql -v ON_ERROR_STOP=1 -U postgres -d certificate_db -f /migrations/certificate
 
 echo "Running Container Management Service migrations..."
 psql -v ON_ERROR_STOP=1 -U postgres -d container_mgmt_db -f /migrations/container-management/001_initial_schema.sql
+
+echo "Running Inventory Service migrations..."
+psql -v ON_ERROR_STOP=1 -U postgres -d inventory_db -f /migrations/inventory/001_initial_schema.sql
+
+echo "Running Geography Service migrations..."
+psql -v ON_ERROR_STOP=1 -U postgres -d geography_db -f /migrations/geography/001_initial_schema.sql
+
+echo "Running Navigation Service migrations..."
+psql -v ON_ERROR_STOP=1 -U postgres -d navigation_db -f /migrations/navigation/001_initial_schema.sql
 
 echo "Database initialization complete!"

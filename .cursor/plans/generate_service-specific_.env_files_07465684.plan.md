@@ -352,6 +352,3 @@ For local development:
 5. **Use strong secrets** - Bootstrap token secret should be at least 32 bytes
 
 ## Next Steps
-
-1. Create `services/container-management/.env.example` with full configuration
-2. Update config loader to support service-specific .env files

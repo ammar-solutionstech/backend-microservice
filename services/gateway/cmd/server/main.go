@@ -23,10 +23,13 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(cfg)
 	helpDeskHandler := handlers.NewHelpDeskHandler(cfg)
+	inventoryHandler := handlers.NewInventoryHandler(cfg)
+	geographyHandler := handlers.NewGeographyHandler(cfg)
+	navigationHandler := handlers.NewNavigationHandler(cfg)
 	legacyHandler := handlers.NewLegacyHandler(cfg)
 
 	// Initialize routes
-	router := routes.NewRouter(cfg, authHandler, helpDeskHandler, legacyHandler)
+	router := routes.NewRouter(cfg, authHandler, helpDeskHandler, inventoryHandler, geographyHandler, navigationHandler, legacyHandler)
 
 	// Setup middleware
 	mux := chi.NewRouter()

@@ -52,3 +52,13 @@ func (UserHelpDesk) TableName() string {
 	return "user_help_desk"
 }
 
+// UserHelpDeskTransaction represents the user_help_desk_transaction join table
+type UserHelpDeskTransaction struct {
+	UserID        int `gorm:"column:user_id;primaryKey" json:"user_id"` // Reference to Auth Service user
+	TransactionID int `gorm:"column:transaction_id;primaryKey" json:"transaction_id"`
+}
+
+func (UserHelpDeskTransaction) TableName() string {
+	return "user_help_desk_transaction"
+}
+

@@ -16,6 +16,7 @@ import (
 
 	"backend/services/helpdesk/internal/config"
 	"backend/services/helpdesk/internal/middleware"
+	"backend/services/helpdesk/internal/models"
 	"backend/services/helpdesk/internal/routes"
 	"backend/services/helpdesk/internal/services"
 	"backend/services/helpdesk/internal/utils"
@@ -29,12 +30,15 @@ func main() {
 	ticketService := services.NewTicketService(cfg, cfg.DB)
 	typeService := services.NewHelpDeskTypeService(cfg, cfg.DB)
 	teamService := services.NewTeamService(cfg, cfg.DB)
+	ratingService := services.NewRatingService(cfg, cfg.DB)
+	transactionService := services.NewTransactionService(cfg, cfg.DB)
+	transactionTypeService := services.NewGenericService[models.TransactionType](cfg.DB)
 
 	// Start gRPC server
 	go startGRPCServer(cfg, ticketService, typeService)
 
 	// Start REST server
-	startRESTServer(cfg, ticketService, typeService, teamService)
+	startRESTServer(cfg, ticketService, typeService, teamService, ratingService, transactionService, transactionTypeService)
 }
 
 func startGRPCServer(cfg *config.Config, ticketService *services.TicketService, typeService *services.HelpDeskTypeService) {
@@ -76,10 +80,14 @@ func startGRPCServer(cfg *config.Config, ticketService *services.TicketService, 
 	}
 }
 
-func startRESTServer(cfg *config.Config, ticketService *services.TicketService, typeService *services.HelpDeskTypeService, teamService *services.TeamService) {
+func startRESTServer(cfg *config.Config, ticketService *services.TicketService, typeService *services.HelpDeskTypeService, teamService *services.TeamService, ratingService *services.RatingService, transactionService *services.TransactionService, transactionTypeService *services.GenericService[models.TransactionType]) {
 	ticketController := routes.NewTicketController(cfg, ticketService)
 	typeController := routes.NewHelpDeskTypeController(cfg, typeService)
 	teamController := routes.NewTeamController(cfg, teamService)
+	ratingController := routes.NewRatingController(cfg, ratingService)
+	transactionController := routes.NewTransactionController(cfg, transactionService, ticketService)
+	participantController := routes.NewParticipantController(cfg, ticketService)
+	transactionTypeController := routes.NewTransactionTypeController(cfg, transactionTypeService)
 
 	mux := chi.NewRouter()
 	mux.Use(middleware.CORSMiddleware)
@@ -102,6 +110,30 @@ func startRESTServer(cfg *config.Config, ticketService *services.TicketService, 
 		r.Get("/{id}/attachments", ticketController.GetAttachments)
 		r.Post("/{id}/assign", ticketController.AssignUser)
 		r.Put("/{id}/status", ticketController.UpdateStatus)
+
+		// Participants routes
+		r.Get("/{helpDeskId}/participants", participantController.GetParticipants)
+		r.Post("/{helpDeskId}/participants", participantController.AddParticipant)
+		r.Delete("/{helpDeskId}/participants/{userId}", participantController.RemoveParticipant)
+
+		// Ratings routes
+		r.Get("/ratings", ratingController.ListRatings)
+		r.Post("/ratings", ratingController.CreateRating)
+		r.Get("/ratings/{id}", ratingController.GetRating)
+		r.Put("/ratings/{id}", ratingController.UpdateRating)
+		r.Delete("/ratings/{id}", ratingController.DeleteRating)
+
+		// Transactions routes
+		r.Get("/transactions", transactionController.ListTransactions)
+		r.Post("/transactions", transactionController.CreateTransaction)
+		r.Get("/transactions/{id}", transactionController.GetTransaction)
+		r.Put("/transactions/{id}", transactionController.UpdateTransaction)
+		r.Delete("/transactions/{id}", transactionController.DeleteTransaction)
+
+		// Transaction users routes
+		r.Get("/transactions/{transactionId}/users", transactionController.GetTransactionUsers)
+		r.Post("/transactions/{transactionId}/users", transactionController.AddTransactionUser)
+		r.Delete("/transactions/{transactionId}/users/{userId}", transactionController.RemoveTransactionUser)
 	})
 
 	mux.Route("/api/help-desk-types", func(r chi.Router) {
@@ -121,6 +153,14 @@ func startRESTServer(cfg *config.Config, ticketService *services.TicketService, 
 		r.Get("/{id}/members", teamController.GetTeamMembers)
 		r.Post("/{id}/members", teamController.AddTeamMember)
 		r.Delete("/{id}/members/{userId}", teamController.RemoveTeamMember)
+	})
+
+	mux.Route("/api/help-desk/transaction-types", func(r chi.Router) {
+		r.Get("/", transactionTypeController.ListTransactionTypes)
+		r.Post("/", transactionTypeController.CreateTransactionType)
+		r.Get("/{id}", transactionTypeController.GetTransactionType)
+		r.Put("/{id}", transactionTypeController.UpdateTransactionType)
+		r.Delete("/{id}", transactionTypeController.DeleteTransactionType)
 	})
 
 	srv := &http.Server{

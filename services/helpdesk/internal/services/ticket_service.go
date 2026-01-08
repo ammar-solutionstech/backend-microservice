@@ -232,3 +232,40 @@ func (s *TicketService) AssignUser(ticketID, userID int) error {
 func (s *TicketService) UpdateStatus(ticketID int, status string) error {
 	return s.db.Model(&models.HelpDesk{}).Where("id = ?", ticketID).Update("state", status).Error
 }
+
+// ListParticipants retrieves all participants for a help desk ticket
+func (s *TicketService) ListParticipants(helpDeskID int) ([]models.UserHelpDesk, error) {
+	var participants []models.UserHelpDesk
+	if err := s.db.Where("help_desk_id = ?", helpDeskID).Find(&participants).Error; err != nil {
+		return nil, err
+	}
+	return participants, nil
+}
+
+// AddParticipant adds a user as a participant to a help desk ticket
+func (s *TicketService) AddParticipant(helpDeskID, userID int) error {
+	// Validate user
+	if !s.authClient.ValidateUser(userID) {
+		return errors.New("invalid user")
+	}
+
+	participant := &models.UserHelpDesk{
+		UserID:     userID,
+		HelpDeskID: helpDeskID,
+	}
+
+	return s.db.Where(participant).FirstOrCreate(participant).Error
+}
+
+// RemoveParticipant removes a user from a help desk ticket participants
+func (s *TicketService) RemoveParticipant(helpDeskID, userID int) error {
+	result := s.db.Where("help_desk_id = ? AND user_id = ?", helpDeskID, userID).
+		Delete(&models.UserHelpDesk{})
+	if err := result.Error; err != nil {
+		return err
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}

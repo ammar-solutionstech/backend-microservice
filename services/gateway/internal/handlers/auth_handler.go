@@ -38,14 +38,26 @@ func NewAuthHandler(cfg *config.Config) *AuthHandler {
 }
 
 func (h *AuthHandler) Proxy(w http.ResponseWriter, r *http.Request) {
-	// Extract the path after /api/auth
-	path := strings.TrimPrefix(r.URL.Path, "/api/auth")
-	if path == "" {
-		path = "/"
+	// Determine the base path and service path
+	var servicePath string
+	if strings.HasPrefix(r.URL.Path, "/api/auth") {
+		servicePath = strings.TrimPrefix(r.URL.Path, "/api/auth")
+	} else if strings.HasPrefix(r.URL.Path, "/api/users") {
+		servicePath = strings.TrimPrefix(r.URL.Path, "/api")
+	} else if strings.HasPrefix(r.URL.Path, "/api/roles") {
+		servicePath = strings.TrimPrefix(r.URL.Path, "/api")
+	} else if strings.HasPrefix(r.URL.Path, "/api/permissions") {
+		servicePath = strings.TrimPrefix(r.URL.Path, "/api")
+	} else {
+		servicePath = r.URL.Path
+	}
+	
+	if servicePath == "" {
+		servicePath = "/"
 	}
 
 	// Build the target URL
-	targetURL := h.authURL + "/api/auth" + path
+	targetURL := h.authURL + servicePath
 	if r.URL.RawQuery != "" {
 		targetURL += "?" + r.URL.RawQuery
 	}

@@ -90,6 +90,40 @@ func startRESTServer(cfg *config.Config, authService *services.AuthService, toke
 		r.Post("/", authController.CreateUser)
 		r.Put("/{id}", authController.UpdateUser)
 		r.Delete("/{id}", authController.DeleteUser)
+		
+		// User Role/Permission management
+		rolePermController := routes.NewRolePermissionController(cfg, authService)
+		r.Put("/{id}/roles", rolePermController.UpdateUserRoles)
+		r.Post("/{id}/roles", rolePermController.AddRoleToUser)
+		r.Delete("/{id}/roles", rolePermController.DeleteRoleFromUser)
+		r.Put("/{id}/permissions", rolePermController.UpdateUserPermissions)
+		r.Post("/{id}/permissions", rolePermController.AddPermissionToUser)
+		r.Delete("/{id}/permissions", rolePermController.DeletePermissionFromUser)
+	})
+
+	// Role management routes
+	mux.Route("/api/roles", func(r chi.Router) {
+		r.Use(middleware.JWTAuth(cfg, tokenService))
+		rolePermController := routes.NewRolePermissionController(cfg, authService)
+		r.Get("/", rolePermController.ListRoles)
+		r.Post("/", rolePermController.CreateRole)
+		r.Get("/{id}", rolePermController.GetRole)
+		r.Put("/{id}", rolePermController.UpdateRole)
+		r.Delete("/{id}", rolePermController.DeleteRole)
+		r.Put("/{id}/permissions", rolePermController.UpdateRolePermissions)
+		r.Post("/{id}/permission", rolePermController.AddPermissionToRole)
+		r.Delete("/{id}/permission", rolePermController.DeletePermissionFromRole)
+	})
+
+	// Permission management routes
+	mux.Route("/api/permissions", func(r chi.Router) {
+		r.Use(middleware.JWTAuth(cfg, tokenService))
+		rolePermController := routes.NewRolePermissionController(cfg, authService)
+		r.Get("/", rolePermController.ListPermissions)
+		r.Post("/", rolePermController.CreatePermission)
+		r.Get("/{id}", rolePermController.GetPermission)
+		r.Put("/{id}", rolePermController.UpdatePermission)
+		r.Delete("/{id}", rolePermController.DeletePermission)
 	})
 
 	mux.Get("/health", func(w http.ResponseWriter, r *http.Request) {
